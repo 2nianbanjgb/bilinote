@@ -89,7 +89,17 @@ Docker 的代理模式是 **System proxy**，意思是「容器跟随 Windows �
    - **AI 总结**：结尾加一段摘要
 4. 「备注」可写额外要求，比如 `每节最多一张截图，总共不超过 10 张`
 5. 点「生成笔记」，等步骤条走完（下载 → 转写 → 总结 → 保存）
-6. 右侧预览顶部有 **复制** 和 **下载**，下载得到 `<视频标题>.md`
+6. 右侧预览顶部有 **复制** 和 **下载**：有截图时下载 `<标题>.zip`（内含 `<标题>.md` + `<标题>/` 图片文件夹，
+   md 里的路径自动改成相对路径，解压即用）；没有截图时直接下载 `<标题>.md`
+
+### 时间戳的位置
+
+「原片跳转」生成的是**标题下一行单独一行**，不和标题挤在一起：
+
+```markdown
+## 核心结论
+[原片 @ 00:00](https://www.bilibili.com/video/BVxxx?t=0)
+```
 
 ### 关于「原片截图」的一个坑（上游设计）
 
@@ -126,6 +136,7 @@ D:\Project_OpenSource\bilibili_note\
 │  │  └─ data\                临时 mp3/mp4（任务结束会自动删）
 │  ├─ config\                 转写器、代理、各平台 Cookie
 │  ├─ static\screenshots\     截图（会累积）
+│  ├─ vector_db\              AI 问答向量索引（已挂载，重建容器不丢）
 │  └─ models\                 whisper 模型（base 已预下载，141MB）
 └─ DEPLOY.md                 运维细节与踩坑记录
 ```
@@ -133,7 +144,8 @@ D:\Project_OpenSource\bilibili_note\
 - **你在网页看到的笔记正文来自浏览器 IndexedDB**，服务端另存了一份快照（`note_results`）
 - **网页点删除现在会真删**：结果文件 + 截图 + 临时媒体 + 向量索引 + 数据库记录（上游是空实现，本仓库已修）
 - **临时音视频在任务结束时自动清理**（上游从不清理）
-- 截图不会自动清，嫌多就手动删 `docker-data\static\screenshots\`
+- 截图不会自动清，用 `清理残留.ps1` 扫描/清理（默认只统计，`-Apply` 才真删）
+- 视频理解/截图产生的抽帧目录（`data\grid_output`、`data\output_frames`）在任务结束时会自动清空
 
 ---
 
@@ -156,13 +168,16 @@ D:\Project_OpenSource\bilibili_note\
 
 | 文件 | 改动 |
 |---|---|
-| `backend/app/services/note.py` | 需要截图时不再复用音频缓存（否则永不下视频）；任务结束清理临时音视频；缓存文件消失时自动重下 |
-| `backend/app/utils/note_helper.py` | 修 `UnboundLocalError`（时间戳链接整段失效）；B 站链接补 `?t=`；清掉标记尾部的 `*` |
+| `backend/app/services/note.py` | 需要截图时不再复用音频缓存；任务结束清理临时音视频**和抽帧目录**；重新生成前删掉上一版引用的截图（避免孤儿图）；缓存文件消失时自动重下 |
+| `backend/app/utils/note_helper.py` | 修 `UnboundLocalError`；B 站链接补 `?t=`；清掉标记尾部 `*`；**时间戳链接移到标题下一行** |
 | `backend/app/routers/note.py` + `db/video_task_dao.py` | `/delete_task` 从空实现改成真正删除文件/截图/媒体/向量/数据库记录 |
 | `backend/app/gpt/prompt_builder.py` | 固定规则：标题/小标题不编号（交给 Markdown 编辑器编号） |
 | `supervisord.conf` | `HF_ENDPOINT` 直连 huggingface.co（hf-mirror 的 308 缺 `x-linked-size`） |
 | `start-bilinote.ps1` / `启动BiliNote.bat` | 一键启动 + 把上面几个文件挂载进容器 |
-| `整理笔记图片.ps1` | md 图片本地化 / 转 URL / 内嵌 base64 |
+| `BillNote_frontend/src/utils/zip.ts` + `MarkdownViewer.tsx` | 下载按钮改为打包 zip（md + 同名图片文件夹），前端已重新构建 |
+| `整理笔记图片.ps1` | 手动整理的备用方案：图片本地化 / 转 URL / 内嵌 base64 |
+| `清理残留.ps1` | 扫描并清理孤儿截图、抽帧、临时媒体、失败任务 |
+| `构建镜像.ps1` | 一键重建本地镜像（拉上游 + 构建前端 + 打包镜像） |
 | `Dockerfile.local` | 把上述修复固化进镜像 |
 
 这些文件通过 `start-bilinote.ps1` 的 bind mount 注入容器，**重启电脑、重建容器都保留**。
@@ -183,17 +198,16 @@ docker pull ghcr.io/jefferyhcool/bilinote:latest
 
 **备份**：复制 `docker-data\data\`（数据库 + 笔记）即可；`models\` 141MB 不必备份，可重下。
 
-**分享给别人**（修复固化，不依赖源码挂载）：
+**重建本地镜像**（改了前端或后端后都要跑一次）：
 
 ```powershell
-docker build -f Dockerfile.local -t bilinote-fixed:latest .
-docker run -d --name bilinote -p 3015:80 --restart unless-stopped `
-  -v ${PWD}\docker-data\data:/app/backend/data `
-  -v ${PWD}\docker-data\config:/app/backend/config `
-  -v ${PWD}\docker-data\static:/app/backend/static `
-  -v ${PWD}\docker-data\models:/app/backend/models `
-  bilinote-fixed:latest
+.\构建镜像.ps1            # 拉上游 latest → vite build → 导出 dist → 打包 bilinote-fixed
+.\start-bilinote.ps1 -Recreate
 ```
+
+启动脚本会自动优先使用 `bilinote-fixed:latest`，没有时才回退官方镜像（那样就没有 zip 导出等前端改动）。
+
+**分享给别人**：把仓库传上去，对方执行 `\构建镜像.ps1` 即可（需要 Docker 能拉 node:20-alpine 和 npm 依赖）。
 
 别人需要自己配 API Key、Cookie、代理设置——这些不在仓库里。
 

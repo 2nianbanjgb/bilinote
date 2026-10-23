@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 from dataclasses import asdict
 from pathlib import Path
 from typing import List, Optional, Tuple, Union, Any
@@ -32,6 +33,7 @@ from app.services.provider import ProviderService
 from app.transcriber.base import Transcriber
 from app.transcriber.transcriber_provider import get_transcriber, _transcribers
 from app.utils.note_helper import replace_content_markers, prepend_source_link
+from app.utils.path_helper import get_app_dir
 from app.utils.screenshot_marker import extract_screenshot_timestamps
 from app.utils.status_code import StatusCode
 from app.utils.video_helper import generate_screenshot
@@ -124,6 +126,8 @@ class NoteGenerator:
         try:
             logger.info(f"开始生成笔记 (task_id={task_id})")
             self._update_status(task_id, TaskStatus.PARSING)
+            # 重新生成前清掉上一版引用的截图，避免产生孤儿图片
+            self._delete_previous_screenshots(task_id)
 
             # 获取下载器与 GPT 实例
 
@@ -244,8 +248,25 @@ class NoteGenerator:
             self._update_status(task_id, TaskStatus.FAILED, message=str(exc))
             return None
 
+    def _delete_previous_screenshots(self, task_id: str) -> None:
+        """删除上一版结果里引用过的截图（同一 task 重新生成时调用）。"""
+        result_json = NOTE_OUTPUT_DIR / f"{task_id}.json"
+        if not result_json.exists():
+            return
+        try:
+            md = json.loads(result_json.read_text(encoding="utf-8")).get("markdown", "") or ""
+            names = re.findall(r"/static/screenshots/([^)]+)", md)
+        except Exception as exc:
+            logger.warning(f"读取上一版截图引用失败 {task_id}: {exc}")
+            return
+        for name in set(names):
+            try:
+                (Path(IMAGE_OUTPUT_DIR) / name.strip()).unlink(missing_ok=True)
+            except Exception as exc:
+                logger.warning(f"删除旧截图失败 {name}: {exc}")
+
     def _cleanup_media_files(self, audio_meta=None) -> None:
-        """任务结束后删除临时音视频，避免 data 目录无限增长。"""
+        """任务结束后删除临时音视频 + 抽帧中间产物，避免 data 目录无限增长。"""
         targets = set()
         if self.video_path:
             targets.add(Path(self.video_path))
@@ -259,6 +280,16 @@ class NoteGenerator:
                     logger.info(f"已清理临时文件：{p}")
             except Exception as exc:
                 logger.warning(f"清理临时文件失败 {p}: {exc}")
+
+        # 视频理解/截图产生的中间帧
+        for sub in ("grid_output", "output_frames"):
+            try:
+                d = Path(get_app_dir(sub))
+                for f in d.glob("*"):
+                    if f.is_file():
+                        f.unlink()
+            except Exception as exc:
+                logger.warning(f"清理 {sub} 失败: {exc}")
 
     @staticmethod
     def delete_note(video_id: str, platform: str) -> int:

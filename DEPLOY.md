@@ -176,3 +176,15 @@ docker pull ghcr.io/jefferyhcool/bilinote:latest
 
 上游剩下的问题：设置里的「Prompt」页仍是空占位（提示词规则目前写死在 `prompt_builder.py`）；
 另外前端删除是「先删浏览器记录再调接口」，接口失败时本地历史已消失、文件可能残留。
+## 7. 第二批改动（2026-10-23）
+
+| 改动 | 说明 |
+|---|---|
+| 导出 zip | 前端重新构建：有截图时「下载」直接给 `<标题>.zip`（内含 `<标题>.md` + `<标题>/` 图片目录，路径已改相对）。无截图仍下 md |
+| 时间戳独立成行 | `## 标题 [原片 @ 01:23](...)` → `## 标题` 换行 `[原片 @ 01:23](...)` |
+| 孤儿截图防护 | 同一 task 重新生成前，先删上一版 json 引用的截图；任务结束清空 `data\grid_output`、`data\output_frames` |
+| 清理残留 | 新增 `清理残留.ps1`：默认 dry-run 统计孤儿截图/抽帧/媒体/失败任务，`-Apply` 才删 |
+| 向量库持久化 | `docker-data\vector_db` 挂载到容器 `/app/backend/vector_db`，重建不丢 AI 问答索引 |
+| 本地镜像 | 新增 `构建镜像.ps1`（拉上游 → vite build → 导出 dist → 打包 `bilinote-fixed`）；`start-bilinote.ps1` 自动优先用本地镜像 |
+
+当前状态：`docker-data` 已从约 175MB 清到 141MB（删了 183 张孤儿截图 + 87 个抽帧文件，共 30.75MB）。

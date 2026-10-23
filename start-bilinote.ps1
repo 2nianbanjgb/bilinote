@@ -35,16 +35,21 @@ $dataDir   = Join-Path $root 'docker-data\data'
 $configDir = Join-Path $root 'docker-data\config'
 $staticDir = Join-Path $root 'docker-data\static'
 $modelsDir = Join-Path $root 'docker-data\models'
+$vectorDir = Join-Path $root 'docker-data\vector_db'
 $supConf   = Join-Path $root 'supervisord.conf'
 $image     = 'ghcr.io/jefferyhcool/bilinote:latest'
 $name      = 'bilinote'
 
-foreach ($d in @($dataDir, $configDir, $staticDir, $modelsDir)) {
+foreach ($d in @($dataDir, $configDir, $staticDir, $modelsDir, $vectorDir)) {
     New-Item -ItemType Directory -Force -Path $d | Out-Null
 }
 
 docker info 2>$null 1>$null
 if ($LASTEXITCODE -ne 0) { throw 'Docker 引擎没在运行，请先启动 Docker Desktop。' }
+
+# 优先用本地构建的镜像（含前端 zip 导出等修复），没有则回退官方镜像
+docker image inspect 'bilinote-fixed:latest' *> $null
+if ($LASTEXITCODE -eq 0) { $image = 'bilinote-fixed:latest' }
 
 if ($Recreate) {
     docker rm -f $name *> $null
@@ -60,6 +65,7 @@ docker run -d --name $name --restart unless-stopped -p "${Port}:80" `
     --mount "type=bind,source=$configDir,target=/app/backend/config" `
     --mount "type=bind,source=$staticDir,target=/app/backend/static" `
     --mount "type=bind,source=$modelsDir,target=/app/backend/models" `
+    --mount "type=bind,source=$vectorDir,target=/app/backend/vector_db" `
     --mount "type=bind,source=$supConf,target=/etc/supervisor/conf.d/supervisord.conf" `
     --mount "type=bind,source=$root\backend\app\services\note.py,target=/app/backend/app/services/note.py" `
     --mount "type=bind,source=$root\backend\app\utils\note_helper.py,target=/app/backend/app/utils/note_helper.py" `

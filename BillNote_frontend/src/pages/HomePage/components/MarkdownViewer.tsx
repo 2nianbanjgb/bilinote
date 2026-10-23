@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown'
 import { Button } from '@/components/ui/button.tsx'
 import { Copy, Download, ArrowRight, Play, ExternalLink } from 'lucide-react'
 import { toast } from 'react-hot-toast'
+import { createZip, type ZipEntry } from '@/utils/zip.ts'
 import Error from '@/components/Lottie/error.tsx'
 import Loading from '@/components/Lottie/Loading.tsx'
 import Idle from '@/components/Lottie/Idle.tsx'
@@ -403,16 +404,56 @@ const MarkdownViewer: FC<MarkdownViewerProps> = memo(({ status }) => {
       URL.revokeObjectURL(url)
     },
   }
-  const handleDownload = () => {
-    const task = getCurrentTask()
-    const name = task?.audioMeta.title || 'note'
-    const blob = new Blob([selectedContent], { type: 'text/markdown;charset=utf-8' })
+  const downloadBlob = (blob: Blob, filename: string) => {
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
-    link.download = `${name}.md`
+    link.download = filename
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+    setTimeout(() => URL.revokeObjectURL(link.href), 2000)
+  }
+
+  // 下载：有截图就打包成 同名.zip（内含 同名.md + 同名/ 图片目录），没截图就只下 md
+  const handleDownload = async () => {
+    const task = getCurrentTask()
+    const rawName = task?.audioMeta.title || 'note'
+    const name = rawName.replace(/[\\/:*?"<>|]/g, '_').trim() || 'note'
+    const content = selectedContent || ''
+
+    const images = Array.from(
+      new Set(
+        Array.from(content.matchAll(/\/static\/screenshots\/([^)\s]+)/g)).map(m => m[1])
+      )
+    )
+
+    if (images.length === 0) {
+      downloadBlob(new Blob([content], { type: 'text/markdown;charset=utf-8' }), `${name}.md`)
+      return
+    }
+
+    try {
+      const entries: ZipEntry[] = []
+      let rewritten = content
+      for (const file of images) {
+        const res = await fetch(`/static/screenshots/${file}`)
+        if (!res.ok) continue
+        const data = new Uint8Array(await res.arrayBuffer())
+        entries.push({ name: `${name}/${file}`, data })
+        rewritten = rewritten.split(`/static/screenshots/${file}`).join(`./${name}/${file}`)
+      }
+      if (entries.length === 0) {
+        downloadBlob(new Blob([content], { type: 'text/markdown;charset=utf-8' }), `${name}.md`)
+        return
+      }
+      entries.unshift({ name: `${name}.md`, data: new TextEncoder().encode(rewritten) })
+      downloadBlob(createZip(entries), `${name}.zip`)
+      toast.success(`已打包 ${entries.length - 1} 张图片`)
+    } catch (e) {
+      console.error('打包 zip 失败', e)
+      toast.error('打包失败，已改为下载 md')
+      downloadBlob(new Blob([content], { type: 'text/markdown;charset=utf-8' }), `${name}.md`)
+    }
   }
 
   if (status === 'loading') {

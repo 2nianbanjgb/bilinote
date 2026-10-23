@@ -61,5 +61,16 @@ def replace_content_markers(markdown: str, video_id: str, platform: str = 'bilib
 
         return f"[原片 @ {mm}:{ss}]({url})"
 
-    return re.sub(pattern, replacer, markdown)
+    out = re.sub(pattern, replacer, markdown)
+
+    # 标题行末尾的「原片 @ mm:ss」链接挪到下一行，避免和标题挤在一起
+    fixed = []
+    for line in out.splitlines():
+        m = re.match(r"^(#{1,6}\s+.*?)\s*(\[原片 @ \d{2}:\d{2}\]\([^)]+\))\s*$", line)
+        if m:
+            fixed.append(m.group(1).rstrip())
+            fixed.append(m.group(2))
+        else:
+            fixed.append(line)
+    return "\n".join(fixed)
 
