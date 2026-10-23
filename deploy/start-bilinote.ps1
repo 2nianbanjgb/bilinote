@@ -75,6 +75,7 @@ docker run -d --name $name --restart unless-stopped -p "${Port}:80" `
     --mount "type=bind,source=$root\backend\app\utils\note_helper.py,target=/app/backend/app/utils/note_helper.py" `
     --mount "type=bind,source=$root\backend\app\gpt\prompt_builder.py,target=/app/backend/app/gpt/prompt_builder.py" `
     --mount "type=bind,source=$root\backend\app\validators\video_url_validator.py,target=/app/backend/app/validators/video_url_validator.py" `
+    --mount "type=bind,source=$root\backend\app\downloaders\douyin_downloader.py,target=/app/backend/app/downloaders/douyin_downloader.py" `
     --mount "type=bind,source=$root\backend\app\routers\note.py,target=/app/backend/app/routers/note.py" `
     --mount "type=bind,source=$root\backend\app\db\video_task_dao.py,target=/app/backend/app/db/video_task_dao.py" `
     $image

@@ -15,6 +15,7 @@ COPY backend/app/utils/note_helper.py /app/backend/app/utils/note_helper.py
 # 偏好：标题不编号（Markdown 编辑器自动编号）
 COPY backend/app/gpt/prompt_builder.py /app/backend/app/gpt/prompt_builder.py
 COPY backend/app/validators/video_url_validator.py /app/backend/app/validators/video_url_validator.py
+COPY backend/app/downloaders/douyin_downloader.py /app/backend/app/downloaders/douyin_downloader.py
 # 修复：网页删除任务时真正清理文件/截图/媒体/向量索引
 COPY backend/app/routers/note.py /app/backend/app/routers/note.py
 # 新增：按视频查 task_id（删除用）

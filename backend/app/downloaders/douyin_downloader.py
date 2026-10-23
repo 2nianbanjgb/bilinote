@@ -125,6 +125,10 @@ class DouyinDownloader(Downloader):
         return url
 
     def extract_video_id(self, url: str) -> str:
+        # 主页里点开视频的链接形如 ...?modal_id=1234567890
+        m = re.search(r"modal_id=(\d+)", url)
+        if m:
+            return m.group(1)
         video_url = self.find_url(url)
 
         if len(video_url):
@@ -200,7 +204,13 @@ class DouyinDownloader(Downloader):
 
             response = requests.get(full_url, headers=kwargs)
 
-            print("Response JSON:", response.content)
+            print("Response JSON:", response.content[:200])
+            body = response.text or ""
+            if not body.lstrip().startswith("{"):
+                snippet = body.strip()[:120]
+                if "Blocked" in snippet or "argus" in snippet.lower() or "Uifid" in snippet:
+                    raise ValueError("抖音风控拦截（缺少或失效的 Cookie）：请在「设置 → 下载配置 → 抖音」填入 Cookie 后重试")
+                raise ValueError("抖音接口返回非 JSON：" + snippet)
             return response.json()
         except Exception as e:
             print("请求失败:", e)

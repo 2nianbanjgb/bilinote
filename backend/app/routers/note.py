@@ -62,6 +62,12 @@ class VideoRequest(BaseModel):
         # 后续校验和 yt-dlp 下载拿到的都是干净链接
         if isinstance(data, dict) and data.get("platform") == "bilibili" and data.get("video_url"):
             data["video_url"] = normalize_video_url(str(data["video_url"]))
+        # 抖音主页里点开视频时，视频 ID 在 modal_id 参数里
+        if isinstance(data, dict) and data.get("platform") == "douyin" and data.get("video_url"):
+            import re as _re
+            m = _re.search(r"modal_id=(\d+)", str(data["video_url"]))
+            if m:
+                data["video_url"] = "https://www.douyin.com/video/" + m.group(1)
         return data
 
     @field_validator("video_url")
@@ -72,7 +78,7 @@ class VideoRequest(BaseModel):
             # 是网络链接，继续用原有平台校验
             if not is_supported_video_url(url):
                 raise NoteError(code=NoteErrorEnum.PLATFORM_NOT_SUPPORTED.code,
-                                message="链接不受支持：请粘贴单个视频链接（B 站 /video/BV…、抖音 /video/数字 或 v.douyin.com 短链），不支持主页/收藏夹/直播")
+                                message="链接不受支持：请粘贴单个视频链接（B 站 /video/BV…、抖音 /video/数字 或 v.douyin.com 短链），不支持未打开视频的主页/收藏夹/直播")
 
         return v
 
