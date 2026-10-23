@@ -208,3 +208,9 @@ docker pull ghcr.io/jefferyhcool/bilinote:latest
 代价：镜像从 2.6GB 增加到约 3.6GB；每个抖音视频首次解析多 20~40 秒；仍然需要用户在「下载配置 → 抖音」填 Cookie。
 `playwright==1.48.0` + Chromium 1140，走 npmmirror 镜像下载（`PLAYWRIGHT_DOWNLOAD_HOST`），Debian 12 不能直接用
 `playwright install --with-deps`（会按 Ubuntu 包名装失败），Dockerfile 里是手动装的运行库。
+
+### 抖音画质
+
+抖音返回的 `video.bit_rate` 里有 540/720/1080/1440 多档，`download_addr` 是它默认的“智能”自适应档。
+下载器现在按 **高度 > 宽度 > h264 优先 > 码率** 排序，逐档尝试，直到拿到体积合理的文件；
+实测示例视频拿到 2560×1440 / HEVC / 60fps（带 AAC 音轨）。同分辨率下优先 h264，避免个别编辑器不认 HEVC。

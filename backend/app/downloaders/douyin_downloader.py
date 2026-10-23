@@ -362,6 +362,53 @@ class DouyinDownloader(Downloader):
         except Exception as e:
             raise e
 
+    @staticmethod
+    def _rank_video_candidates(video: dict):
+        """按 高度 > 编码兼容性(h264优先) > 码率 排序，返回候选 URL 列表。"""
+        candidates = []
+        for item in (video.get("bit_rate") or []):
+            addr = item.get("play_addr") or {}
+            urls = addr.get("url_list") or []
+            if not urls:
+                continue
+            height = int(addr.get("height") or 0)
+            width = int(addr.get("width") or 0)
+            is_h265 = 1 if item.get("is_h265") else 0
+            bitrate = int(item.get("bit_rate") or 0)
+            candidates.append((height, width, -is_h265, bitrate, urls[0]))
+        candidates.sort(reverse=True)
+        result = [c[4] for c in candidates]
+
+        # 兜底：play_addr / download_addr
+        for key in ("play_addr", "download_addr"):
+            urls = (video.get(key) or {}).get("url_list") or []
+            if urls:
+                result.append(urls[0])
+        return result
+
+    def _download_best_video(self, video: dict, output_path: str) -> None:
+        """依次尝试最高档候选地址，成功写入且体积合理就返回。"""
+        urls = self._rank_video_candidates(video)
+        if not urls:
+            raise ValueError("没有可用的视频地址")
+        last_error = None
+        for url in urls:
+            try:
+                resp = requests.get(url, headers=self.headers_config, allow_redirects=True, timeout=90)
+                if resp.status_code != 200:
+                    last_error = f"HTTP {resp.status_code}"
+                    continue
+                if len(resp.content) < 100 * 1024:
+                    last_error = f"内容过小 {len(resp.content)}B"
+                    continue
+                with open(output_path, "wb") as f:
+                    f.write(resp.content)
+                return
+            except Exception as exc:
+                last_error = str(exc)
+                continue
+        raise ValueError(f"视频下载失败：{last_error}")
+
     def download_video(self, video_url: str, output_dir: Union[str, None] = None) -> str:
 
         try:
@@ -386,11 +433,7 @@ class DouyinDownloader(Downloader):
                 "ext": "mp4",
             }
 
-            url=video_data['aweme_detail']['video']['download_addr']['url_list'][0]
-            _data = requests.get(url,allow_redirects=True,headers=self.headers_config)
-
-            with open(output_path, 'wb') as f:
-                f.write(_data.content)
+            self._download_best_video(video_data['aweme_detail']['video'], output_path)
 
             return output_path
         except Exception as e:
