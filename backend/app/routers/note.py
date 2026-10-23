@@ -164,14 +164,82 @@ def run_note_task(task_id: str, video_url: str, platform: str, quality: Download
         logger.warning(f"向量索引失败（不影响笔记）: {e}")
 
 
+def _delete_local_task_files(task_id: str) -> int:
+    """删除某个任务在磁盘上的产出：结果文件、截图、向量索引。返回删除的文件数。"""
+    import re as _re
+
+    note_dir = Path(NOTE_OUTPUT_DIR)
+    result_json = note_dir / f"{task_id}.json"
+    shot_names = set()
+    if result_json.exists():
+        try:
+            md = json.loads(result_json.read_text(encoding="utf-8")).get("markdown", "") or ""
+            shot_names = set(_re.findall(r"/static/screenshots/([^)\s\"']+)", md))
+        except Exception as exc:
+            logger.warning(f"解析笔记截图引用失败 {task_id}: {exc}")
+
+    removed = 0
+    for p in note_dir.glob(f"{task_id}*"):
+        try:
+            if p.is_file():
+                p.unlink()
+                removed += 1
+        except Exception as exc:
+            logger.warning(f"删除文件失败 {p}: {exc}")
+
+    shot_dir = Path(os.getenv("OUT_DIR", "./static/screenshots"))
+    for name in shot_names:
+        try:
+            target = shot_dir / name
+            if target.is_file():
+                target.unlink()
+                removed += 1
+        except Exception as exc:
+            logger.warning(f"删除截图失败 {name}: {exc}")
+
+    try:
+        from app.services.vector_store import VectorStoreManager
+        VectorStoreManager()._client.delete_collection(task_id)
+    except Exception:
+        pass
+    return removed
+
+
+def _delete_media_files(video_id: str) -> None:
+    """删除该视频留下的 mp3/mp4（可能分布在 data 和 data/data 两个目录）。"""
+    if not video_id:
+        return
+    candidates = []
+    for d in (Path(os.getenv("DATA_DIR", "data")), Path(os.getenv("DATA_DIR", "data")) / "data"):
+        candidates.extend(d.glob(f"{video_id}.*"))
+    for p in candidates:
+        try:
+            if p.is_file():
+                p.unlink()
+        except Exception as exc:
+            logger.warning(f"删除媒体文件失败 {p}: {exc}")
+
+
 @router.post('/delete_task')
 def delete_task(data: RecordRequest):
+    """删除某个视频的所有任务：磁盘文件 + 截图 + 向量索引 + 数据库记录。
+
+    前端只传 video_id + platform（见 taskStore.removeTask），所以这里按视频反查 task_id。
+    """
     try:
-        # TODO: 待持久化完成
-        # NoteGenerator().delete_note(video_id=data.video_id, platform=data.platform)
-        return R.success(msg='删除成功')
+        from app.db.video_task_dao import get_tasks_by_video, delete_task_by_video
+
+        task_ids = get_tasks_by_video(data.video_id, data.platform)
+        removed = 0
+        for tid in task_ids:
+            removed += _delete_local_task_files(tid)
+        _delete_media_files(data.video_id)
+        delete_task_by_video(data.video_id, data.platform)
+        logger.info(f"删除任务完成 video_id={data.video_id} platform={data.platform} tasks={task_ids}")
+        return R.success(msg=f"已删除 {len(task_ids)} 个任务、{removed} 个文件")
     except Exception as e:
-        return R.error(msg=e)
+        logger.error(f"删除任务失败: {e}")
+        return R.error(msg=str(e))
 
 
 @router.post("/upload")

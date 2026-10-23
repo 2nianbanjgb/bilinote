@@ -124,15 +124,16 @@ docker pull ghcr.io/jefferyhcool/bilinote:latest
    只有清浏览器数据、换浏览器/无痕模式会看不到前端历史（md 副本还在 note_results 里）。
 
 8. **截图 / 时间戳跳转不生效（已修好，用 bind mount 覆盖源码）**：三个真 bug ——
-   eplace_content_markers 里的 UnboundLocalError 让链接替换整段异常被吞；B 站链接漏了
+   replace_content_markers 里的 UnboundLocalError 让链接替换整段异常被吞；B 站链接漏了
    `?`（生成 `...BVxxx&t=123` 打不开对应位置）；重试复用 task_id 时命中音频缓存，
    直接跳过视频下载导致没图可截。已修 `backend/app/utils/note_helper.py` 和
    `backend/app/services/note.py`，并在 `start-bilinote.ps1` 里挂载进容器，重建容器仍生效。
    注意：`data\note_results\<task_id>_markdown.md` 是**没做后处理的原始输出**（带 *Content-[mm:ss]*
    标记），后处理结果在 `<task_id>.json` 和网页里。
-9. **音视频不会自动删除**：whisper/bcut/kuaishou 里的 `on_finish` 调用都被注释了，
-   `transcription_finished` 从不触发，所以 `docker-data\data\data\` 下的
-   `<video_id>.mp3 / .mp4` 会一直留着（6 分钟视频约 15MB）。定期清理这个目录即可。
+9. **临时音视频会自动清理（本仓库已修）**：上游的 `on_finish` 全被注释掉，媒体文件永不删除；
+   现在 `NoteGenerator.generate` 在任务结束（成功或失败）时调用 `_cleanup_media_files` 删掉
+   本次的 mp3/mp4，并校验音频缓存是否还在，不在了就自动重下。
+   历史上遗留的旧文件仍在 `docker-data\data\data\`，可以手动清一次。
 10. **B 站 Cookie 必须含 SESSDATA**：`document.cookie` 拿不到 HttpOnly 的 SESSDATA，
     要 DevTools → Application → Cookies → bilibili.com → 复制 SESSDATA，或装官方浏览器插件同步。
     没有 SESSDATA 就是游客身份：只有 360P/480P、拿不到 AI 字幕、也没有大会员画质。
@@ -149,14 +150,15 @@ docker pull ghcr.io/jefferyhcool/bilinote:latest
 
 | 文件 | 改了什么 | 生效方式 |
 |---|---|---|
-| `backend/app/services/note.py` | 需要截图/视频理解时不再复用音频缓存（否则永远不下视频、截图无图可插） | bind mount 进容器 |
+| `backend/app/services/note.py` | 需要截图/视频理解时不再复用音频缓存；任务结束自动清理临时音视频；缓存文件消失时重下 | bind mount 进容器 |
 | `backend/app/utils/note_helper.py` | 修 UnboundLocalError（时间戳链接整段失效）；B 站链接补 `?t=`；吃掉标记尾部的 `*` | bind mount 进容器 |
 | `backend/app/gpt/prompt_builder.py` | 追加固定规则：标题/小标题不编号 | bind mount 进容器 |
+| `backend/app/routers/note.py` + `db/video_task_dao.py` | `/delete_task` 从空实现改成真删：结果文件、引用到的截图、临时媒体、向量索引、数据库记录 | bind mount 进容器 |
 | `supervisord.conf` | `HF_ENDPOINT` 改直连 huggingface.co（hf-mirror 的 308 缺头） | bind mount 进容器 |
-| `start-bilinote.ps1` | 挂载上面 4 个文件 + 4 个数据目录 | 每次建容器时执行 |
+| `start-bilinote.ps1` | 挂载上面 6 个文件 + 4 个数据目录 | 每次建容器时执行 |
 | `启动BiliNote.bat` | 双击启动：拉起 Docker → 建/启动容器 → 开浏览器 | 手动运行 |
 | `整理笔记图片.ps1` | 把 md 里的 `/static/screenshots/...` 变成本地可看 | 手动运行 |
-| `Dockerfile.local` | 把上面 4 个文件固化进镜像 | `docker build -f Dockerfile.local -t bilinote-fixed:latest .` |
+| `Dockerfile.local` | 把上面 6 个文件固化进镜像 | `docker build -f Dockerfile.local -t bilinote-fixed:latest .` |
 
 **重启电脑 / `docker rm` 重建容器 / `-Recreate` 后都仍然生效**，因为文件在 D 盘仓库里，启动脚本每次都重新挂进去。
 
@@ -172,5 +174,5 @@ docker pull ghcr.io/jefferyhcool/bilinote:latest
 - **不会跟着仓库走的东西**：`docker-data\`（数据库、笔记、截图、whisper 模型、Cookie、API Key）、
   Docker Desktop 的代理设置、系统代理开关。这些每个人自己配。
 
-上游本身还有没修的问题（我没动）：`/delete_task` 是空实现（网页删任务不删文件）、
-音视频不自动删、设置里的「Prompt」页是空占位。
+上游剩下的问题：设置里的「Prompt」页仍是空占位（提示词规则目前写死在 `prompt_builder.py`）；
+另外前端删除是「先删浏览器记录再调接口」，接口失败时本地历史已消失、文件可能残留。

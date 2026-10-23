@@ -59,3 +59,19 @@ def delete_task_by_video(video_id: str, platform: str):
         logger.error(f"Failed to delete task by video: {e}")
     finally:
         db.close()
+
+# 查询某视频下的所有 task_id（删除笔记时用）
+def get_tasks_by_video(video_id: str, platform: str):
+    db = next(get_db())
+    try:
+        tasks = (
+            db.query(VideoTask)
+            .filter_by(video_id=video_id, platform=platform)
+            .all()
+        )
+        return [t.task_id for t in tasks]
+    except Exception as e:
+        logger.error(f"Failed to list tasks by video: {e}")
+        return []
+    finally:
+        db.close()

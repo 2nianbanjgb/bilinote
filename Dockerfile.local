@@ -14,5 +14,9 @@ COPY backend/app/services/note.py /app/backend/app/services/note.py
 COPY backend/app/utils/note_helper.py /app/backend/app/utils/note_helper.py
 # 偏好：标题不编号（Markdown 编辑器自动编号）
 COPY backend/app/gpt/prompt_builder.py /app/backend/app/gpt/prompt_builder.py
+# 修复：网页删除任务时真正清理文件/截图/媒体/向量索引
+COPY backend/app/routers/note.py /app/backend/app/routers/note.py
+# 新增：按视频查 task_id（删除用）
+COPY backend/app/db/video_task_dao.py /app/backend/app/db/video_task_dao.py
 # 模型下载源：hf-mirror 的 308 缺 x-linked-size，改成直连 huggingface.co
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf

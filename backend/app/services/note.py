@@ -120,6 +120,7 @@ class NoteGenerator:
         if grid_size is None:
             grid_size = []
 
+        audio_meta = None
         try:
             logger.info(f"开始生成笔记 (task_id={task_id})")
             self._update_status(task_id, TaskStatus.PARSING)
@@ -225,7 +226,10 @@ class NoteGenerator:
 
             markdown = prepend_source_link(markdown, str(video_url))
 
-            # 5. 保存记录到数据库
+            # 5. 清理临时音视频（截图/视频理解都已处理完，文件不再需要）
+            self._cleanup_media_files(audio_meta)
+
+            # 6. 保存记录到数据库
             self._update_status(task_id, TaskStatus.SAVING)
             self._save_metadata(video_id=audio_meta.video_id, platform=platform, task_id=task_id)
 
@@ -236,8 +240,25 @@ class NoteGenerator:
 
         except Exception as exc:
             logger.error(f"生成笔记流程异常 (task_id={task_id})：{exc}", exc_info=True)
+            self._cleanup_media_files(audio_meta)
             self._update_status(task_id, TaskStatus.FAILED, message=str(exc))
             return None
+
+    def _cleanup_media_files(self, audio_meta=None) -> None:
+        """任务结束后删除临时音视频，避免 data 目录无限增长。"""
+        targets = set()
+        if self.video_path:
+            targets.add(Path(self.video_path))
+        file_path = getattr(audio_meta, "file_path", None) if audio_meta else None
+        if file_path:
+            targets.add(Path(file_path))
+        for p in targets:
+            try:
+                if p.is_file():
+                    p.unlink()
+                    logger.info(f"已清理临时文件：{p}")
+            except Exception as exc:
+                logger.warning(f"清理临时文件失败 {p}: {exc}")
 
     @staticmethod
     def delete_note(video_id: str, platform: str) -> int:
@@ -401,7 +422,11 @@ class NoteGenerator:
             logger.info(f"检测到音频缓存 ({audio_cache_file})，直接读取")
             try:
                 data = json.loads(audio_cache_file.read_text(encoding="utf-8"))
-                return AudioDownloadResult(**data)
+                cached = AudioDownloadResult(**data)
+                if cached.file_path and not os.path.exists(str(cached.file_path)):
+                    logger.info("音频缓存文件已被清理，重新下载")
+                else:
+                    return cached
             except Exception as e:
                 logger.warning(f"读取音频缓存失败，将重新下载：{e}")
 
