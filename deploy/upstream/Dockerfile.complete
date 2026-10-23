@@ -1,3 +1,6 @@
+# 上游的一体化镜像构建文件（本项目日常不用，保留作参考）
+# 构建时 context 必须是仓库根目录：
+#   docker build -f deploy/upstream/Dockerfile.complete -t bilinote-aio .
 # BASE_REGISTRY 默认 docker.io；国内拉不到可换镜像源：
 #   docker build --build-arg BASE_REGISTRY=docker.m.daocloud.io -f Dockerfile.complete .
 ARG BASE_REGISTRY=docker.io

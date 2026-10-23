@@ -163,7 +163,7 @@ docker pull ghcr.io/jefferyhcool/bilinote:latest
 **重启电脑 / `docker rm` 重建容器 / `-Recreate` 后都仍然生效**，因为文件在 D 盘仓库里，启动脚本每次都重新挂进去。
 
 但注意：如果你**绕过启动脚本**直接 `docker run ghcr.io/jefferyhcool/bilinote:latest`，或者按上游 README 用
-`docker-compose up`，这些修复**不会生效**（那两个是原始代码）。
+`docker compose -f deploy/upstream/docker-compose.yml up`，这些修复**不会生效**（那是上游原始代码）。
 
 ### 分享给别人
 

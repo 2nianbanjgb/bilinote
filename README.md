@@ -133,10 +133,14 @@ Docker 的代理模式是 **System proxy**，意思是「容器跟随 Windows �
 
 ```
 D:\Project_OpenSource\bilibili_note\
-├─ 启动BiliNote.bat          ★ 日常双击
-├─ deploy\                     底层脚本（启动/构建/补导/协议/supervisord.conf）
-│  └─ tools\                  图片整理 / 清理残留
-├─ Dockerfile.local          把修复固化进镜像（分享用）
+├─ 启动BiliNote.bat            ★ 日常双击
+├─ README.md / DEPLOY.md / LICENSE
+├─ Dockerfile.local            本地镜像（把修复固化进镜像）
+├─ deploy\
+│  ├─ start-bilinote.ps1 / 构建镜像.ps1 / 注册导出目录协议.ps1 / 补导出笔记.ps1
+│  ├─ supervisord.conf
+│  ├─ tools\                  图片整理（整理笔记图片.ps1）/ 清理残留（清理残留.ps1）
+│  └─ upstream\               上游 compose / 一体化 Dockerfile（备选，日常不用）
 ├─ docker-data\
 │  ├─ data\
 │  │  ├─ bili_note.db         供应商/模型/任务映射（含明文 API Key）
@@ -144,10 +148,10 @@ D:\Project_OpenSource\bilibili_note\
 │  │  └─ data\                临时 mp3/mp4（任务结束会自动删）
 │  ├─ config\                 转写器、代理、各平台 Cookie
 │  ├─ static\screenshots\     截图（会累积）
-├─ bilinote_output_docs\      ★ 自动导出的成品：<标题>.md + <标题>\ 图片目录
 │  ├─ vector_db\              AI 问答向量索引（已挂载，重建容器不丢）
 │  └─ models\                 whisper 模型（base 已预下载，141MB）
-└─ DEPLOY.md                 运维细节与踩坑记录
+├─ bilinote_output_docs\      ★ 自动导出的成品：<标题>.md + <标题>\ 图片目录
+└─ frontend-dist\             前端构建产物（可删，重新构建镜像会生成）
 ```
 
 - **你在网页看到的笔记正文来自浏览器 IndexedDB**，服务端另存了一份快照（`note_results`）
