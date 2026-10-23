@@ -138,3 +138,10 @@ docker pull ghcr.io/jefferyhcool/bilinote:latest
     没有 SESSDATA 就是游客身份：只有 360P/480P、拿不到 AI 字幕、也没有大会员画质。
 11. **截图数量**：模型会给每个小节都打 `*Screenshot-[mm:ss]` 标记，一条 6 分钟视频能出
     几十张图。想控制就在「备注」里写「每节最多一张截图，总共不超过 10 张」。
+12. **导出的 md 图片打不开**：md 里只有 `![](/static/screenshots/xxx.jpg)` 这种**网站根路径**，
+    图片本体在 `docker-data\static\screenshots\`，导出 md 不会带图，本地编辑器解析不了。
+    用 `整理笔记图片.ps1` 处理（三种模式）：
+    `.\整理笔记图片.ps1 -MdPath "D:\笔记\xxx.md"`              # 图片复制到 xxx.assets\，改相对路径（离线可用）
+    `.\整理笔记图片.ps1 -MdPath "D:\笔记\xxx.md" -Mode url`     # 改成 http://127.0.0.1:3015/static/...（需服务在跑）
+    `.\整理笔记图片.ps1 -MdPath "D:\笔记\xxx.md" -Mode base64`  # 图片内嵌进 md，单文件但体积大
+    也可以 `-TaskId <id>` 直接从服务端结果导出。默认不覆盖原文件，输出 `xxx.local.md`。

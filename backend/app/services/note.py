@@ -668,7 +668,11 @@ class NoteGenerator:
                 filename = Path(img_path).name
                 # 构建前端可访问的 URL，例如 /static/screenshots/{filename}
                 img_url = f"{IMAGE_BASE_URL.rstrip('/')}/{filename}"
-                markdown = markdown.replace(marker, f"![]({img_url})", 1)
+                # 标记可能是 *Screenshot-[mm:ss]* 形式，连尾部的 * 一起吃掉
+                if f"{marker}*" in markdown:
+                    markdown = markdown.replace(f"{marker}*", f"![]({img_url})", 1)
+                else:
+                    markdown = markdown.replace(marker, f"![]({img_url})", 1)
             except Exception as exc:
                 logger.error(f"生成截图失败 (timestamp={ts})：{exc}")
                 # self._handle_exception(task_id, exc)
