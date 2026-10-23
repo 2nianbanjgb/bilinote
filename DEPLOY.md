@@ -122,3 +122,19 @@ docker pull ghcr.io/jefferyhcool/bilinote:latest
 7. **历史会不会丢**：不会。生成历史存在**浏览器 IndexedDB**（`task-storage`），服务端另有
    `docker-data\data\bili_note.db` + `note_results\*.md` 副本。关机重启、容器重建都不影响；
    只有清浏览器数据、换浏览器/无痕模式会看不到前端历史（md 副本还在 note_results 里）。
+
+8. **截图 / 时间戳跳转不生效（已修好，用 bind mount 覆盖源码）**：三个真 bug ——
+   eplace_content_markers 里的 UnboundLocalError 让链接替换整段异常被吞；B 站链接漏了
+   `?`（生成 `...BVxxx&t=123` 打不开对应位置）；重试复用 task_id 时命中音频缓存，
+   直接跳过视频下载导致没图可截。已修 `backend/app/utils/note_helper.py` 和
+   `backend/app/services/note.py`，并在 `start-bilinote.ps1` 里挂载进容器，重建容器仍生效。
+   注意：`data\note_results\<task_id>_markdown.md` 是**没做后处理的原始输出**（带 *Content-[mm:ss]*
+   标记），后处理结果在 `<task_id>.json` 和网页里。
+9. **音视频不会自动删除**：whisper/bcut/kuaishou 里的 `on_finish` 调用都被注释了，
+   `transcription_finished` 从不触发，所以 `docker-data\data\data\` 下的
+   `<video_id>.mp3 / .mp4` 会一直留着（6 分钟视频约 15MB）。定期清理这个目录即可。
+10. **B 站 Cookie 必须含 SESSDATA**：`document.cookie` 拿不到 HttpOnly 的 SESSDATA，
+    要 DevTools → Application → Cookies → bilibili.com → 复制 SESSDATA，或装官方浏览器插件同步。
+    没有 SESSDATA 就是游客身份：只有 360P/480P、拿不到 AI 字幕、也没有大会员画质。
+11. **截图数量**：模型会给每个小节都打 `*Screenshot-[mm:ss]` 标记，一条 6 分钟视频能出
+    几十张图。想控制就在「备注」里写「每节最多一张截图，总共不超过 10 张」。

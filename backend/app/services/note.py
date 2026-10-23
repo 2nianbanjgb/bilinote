@@ -397,7 +397,7 @@ class NoteGenerator:
         self._update_status(task_id, status_phase)
 
         # 已有缓存，尝试加载
-        if audio_cache_file.exists():
+        if audio_cache_file.exists() and not (screenshot or video_understanding):
             logger.info(f"检测到音频缓存 ({audio_cache_file})，直接读取")
             try:
                 data = json.loads(audio_cache_file.read_text(encoding="utf-8"))
