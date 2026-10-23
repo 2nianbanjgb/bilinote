@@ -42,7 +42,7 @@ $baseName = if ($OutPath) { [System.IO.Path]::GetFileNameWithoutExtension($OutPa
             else { $TaskId }
 if (-not $OutPath) { $OutPath = Join-Path $mdDir "$baseName.local.md" }
 
-$assetsDirName = "$baseName.assets"
+$assetsDirName = $baseName
 $assetsDir = Join-Path $mdDir $assetsDirName
 $pattern = [regex]'!\[([^\]]*)\]\(/static/screenshots/([^)]+)\)'
 $matches = $pattern.Matches($md)
