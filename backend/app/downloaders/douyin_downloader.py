@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+import subprocess
 import re
 from typing import Union, Optional
 from urllib.parse import quote, urlencode
@@ -311,6 +312,60 @@ class DouyinDownloader(Downloader):
                 raise ValueError("请求失败:", e)
         # print(kwargs)
 
+    def _pick_audio_url(self, detail) -> Optional[str]:
+        """优先 music.play_url；长视频等没有 music 字段时用 bit_rate_audio。"""
+        music = detail.get('music') or {}
+        play = music.get('play_url') or {}
+        if play.get('uri'):
+            return play['uri']
+        for item in (play.get('url_list') or []):
+            if isinstance(item, str):
+                return item
+            if isinstance(item, dict):
+                for key in ('main_url', 'backup_url', 'fallback_url'):
+                    if item.get(key):
+                        return item[key]
+        for item in ((detail.get('video') or {}).get('bit_rate_audio') or []):
+            urls = (item.get('audio_meta') or {}).get('url_list') or {}
+            if isinstance(urls, dict):
+                for key in ('main_url', 'backup_url', 'fallback_url'):
+                    if urls.get(key):
+                        return urls[key]
+            elif isinstance(urls, list) and urls:
+                return urls[0]
+        return None
+
+    def _download_url(self, url: str, path: str, min_bytes: int = 10 * 1024) -> None:
+        resp = requests.get(url, headers=self.headers_config, allow_redirects=True, timeout=180)
+        if resp.status_code != 200:
+            raise ValueError(f"HTTP {resp.status_code}")
+        if len(resp.content) < min_bytes:
+            raise ValueError(f"内容过小 {len(resp.content)}B")
+        with open(path, "wb") as f:
+            f.write(resp.content)
+
+    def _to_mp3(self, src: str, dst: str) -> None:
+        result = subprocess.run(
+            ["ffmpeg", "-y", "-i", src, "-vn", "-acodec", "libmp3lame", "-b:a", "128k", dst],
+            capture_output=True, text=True,
+        )
+        if result.returncode != 0:
+            raise ValueError(f"转 mp3 失败: {result.stderr[:200]}")
+        try:
+            os.remove(src)
+        except OSError:
+            pass
+
+    def _audio_from_video(self, detail, output_path: str) -> None:
+        """没有独立音频流时，下最低分辨率视频再抽音轨（够转写用，省流量）。"""
+        video = detail.get('video') or {}
+        candidates = self._rank_video_candidates(video)
+        if not candidates:
+            raise ValueError("该内容没有音频也没有视频轨（可能是图文）")
+        tmp_video = output_path + ".mp4"
+        self._download_url(candidates[-1], tmp_video, min_bytes=100 * 1024)
+        self._to_mp3(tmp_video, output_path)
+
     def download(
             self,
             video_url: str,
@@ -318,49 +373,50 @@ class DouyinDownloader(Downloader):
             quality: DownloadQuality = "fast",
             need_video: Optional[bool] = False
     ) -> AudioDownloadResult:
-        try:
-            print(
-                f"正在下载视频: {video_url}，保存路径: {output_dir}，质量: {quality}"
-            )
-            if output_dir is None:
-                output_dir = get_data_dir()
-            if not output_dir:
-                output_dir = self.cache_data
-            os.makedirs(output_dir, exist_ok=True)
+        if output_dir is None:
+            output_dir = get_data_dir()
+        if not output_dir:
+            output_dir = self.cache_data
+        os.makedirs(output_dir, exist_ok=True)
 
-            output_path = os.path.join(output_dir, "%(id)s.%(ext)s")
+        video_data = self.fetch_video_info(video_url)
+        detail = video_data['aweme_detail']
+        aweme_id = str(detail.get('aweme_id') or self.extract_video_id(video_url))
+        output_path = os.path.join(output_dir, f"{aweme_id}.mp3")
 
-            video_data = self.fetch_video_info(video_url)
-            output_path = output_path % {
-                "id": video_data['aweme_detail']['aweme_id'],
-                "ext": "mp3",
-            }
-            url = video_data['aweme_detail']['music']['play_url']['uri']
-            # 下载音频
-            audio_data = requests.get(url)
-            with open(output_path, 'wb') as f:
-                f.write(audio_data.content)
-            print(url)
-            tags = []
-            for tag in video_data['aweme_detail']['video_tag']:
-                if tag['tag_name']:
-                    tags.append(tag['tag_name'])
+        audio_url = self._pick_audio_url(detail)
+        if audio_url:
+            try:
+                tmp_audio = output_path + ".src"
+                self._download_url(audio_url, tmp_audio)
+                self._to_mp3(tmp_audio, output_path)
+            except Exception as exc:
+                print("音频直链失败，改为从视频抽音轨:", exc)
+                self._audio_from_video(detail, output_path)
+        else:
+            print("没有 music/audio 直链，改为从视频抽音轨")
+            self._audio_from_video(detail, output_path)
 
-            return AudioDownloadResult(
-                file_path=output_path,
-                title=video_data['aweme_detail']['item_title'],
-                duration=video_data['aweme_detail']['video']['duration'],
-                cover_url=video_data['aweme_detail']['video']['cover_original_scale']['url_list'][0] if
-                video_data['aweme_detail']['video']['cover'] else video_data['video']['big_thumbs']['img_url'],
-                platform="douyin",
-                video_id=video_data['aweme_detail']['aweme_id'],
-                raw_info={
-                    'tags': video_data['aweme_detail']['caption'] + ''.join(tags),
-                },
-                video_path=None  # ❗音频下载不包含视频路径
-            )
-        except Exception as e:
-            raise e
+        video = detail.get('video') or {}
+        cover = video.get('cover_original_scale') or video.get('cover') or {}
+        cover_list = cover.get('url_list') if isinstance(cover, dict) else None
+        cover_url = cover_list[0] if isinstance(cover_list, list) and cover_list else ''
+        tags = []
+        for tag in (detail.get('video_tag') or []):
+            if tag.get('tag_name'):
+                tags.append(tag['tag_name'])
+        title = detail.get('item_title') or (detail.get('desc') or '').strip() or aweme_id
+
+        return AudioDownloadResult(
+            file_path=output_path,
+            title=title,
+            duration=video.get('duration', 0),
+            cover_url=cover_url,
+            platform="douyin",
+            video_id=aweme_id,
+            raw_info={'tags': (detail.get('caption') or '') + ''.join(tags)},
+            video_path=None
+        )
 
     @staticmethod
     def _rank_video_candidates(video: dict):
