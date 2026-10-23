@@ -142,9 +142,9 @@ docker pull ghcr.io/jefferyhcool/bilinote:latest
 12. **导出的 md 图片打不开**：md 里只有 `![](/static/screenshots/xxx.jpg)` 这种**网站根路径**，
     图片本体在 `docker-data\static\screenshots\`，导出 md 不会带图，本地编辑器解析不了。
     用 `整理笔记图片.ps1` 处理（三种模式）：
-    `.\整理笔记图片.ps1 -MdPath "D:\笔记\xxx.md"`              # 图片复制到 xxx.assets\，改相对路径（离线可用）
-    `.\整理笔记图片.ps1 -MdPath "D:\笔记\xxx.md" -Mode url`     # 改成 http://127.0.0.1:3015/static/...（需服务在跑）
-    `.\整理笔记图片.ps1 -MdPath "D:\笔记\xxx.md" -Mode base64`  # 图片内嵌进 md，单文件但体积大
+    `.\deploy\tools\整理笔记图片.ps1 -MdPath "D:\笔记\xxx.md"`              # 图片复制到 xxx.assets\，改相对路径（离线可用）
+    `.\deploy\tools\整理笔记图片.ps1 -MdPath "D:\笔记\xxx.md" -Mode url`     # 改成 http://127.0.0.1:3015/static/...（需服务在跑）
+    `.\deploy\tools\整理笔记图片.ps1 -MdPath "D:\笔记\xxx.md" -Mode base64`  # 图片内嵌进 md，单文件但体积大
     也可以 `-TaskId <id>` 直接从服务端结果导出。默认不覆盖原文件，输出 `xxx.local.md`。
 ## 6. 本地相对上游改了什么（重启 / 重建 / 分享都看这一节）
 

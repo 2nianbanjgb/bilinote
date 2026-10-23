@@ -160,17 +160,6 @@ export function MarkdownHeader({
           </Tooltip>
         </TooltipProvider>
 
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button onClick={onDownload} variant="ghost" size="sm" className="h-8 px-2">
-                <Download className="mr-1.5 h-4 w-4" />
-                <span className="text-sm">导出 Markdown</span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>下载为 Markdown 文件</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
         {onOpenFolder && (
           <TooltipProvider>
             <Tooltip>

@@ -1,4 +1,4 @@
-﻿# =============================================================================
+# =============================================================================
 # 清理 BiliNote 的残留文件
 #
 # 默认只扫描并列出（dry-run），不会删任何东西。确认无误后加 -Apply 才真删。
@@ -19,7 +19,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$root = $PSScriptRoot
+# 脚本在 deploy/tools 里，项目根目录上移两级
+$root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $noteDir   = Join-Path $root 'docker-data\data\note_results'
 $shotDir   = Join-Path $root 'docker-data\static\screenshots'
 $gridDir   = Join-Path $root 'docker-data\data\grid_output'

@@ -1,4 +1,4 @@
-﻿# =============================================================================
+# =============================================================================
 # 把导出的笔记 md 里的 /static/screenshots/xxx.jpg 变成本地能看的图片
 #
 # 用法：
@@ -18,7 +18,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$root = $PSScriptRoot
+# 脚本在 deploy/tools 里，项目根目录上移两级
+$root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $shotDir = Join-Path $root 'docker-data\static\screenshots'
 $noteDir = Join-Path $root 'docker-data\data\note_results'
 $port = 3015

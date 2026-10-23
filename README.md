@@ -99,8 +99,7 @@ Docker 的代理模式是 **System proxy**，意思是「容器跟随 Windows �
 
    md 里是 `./<标题>/xxx.jpg` 相对路径（空格会转义成 %20），整个文件夹拷走就能看，没有任何 json/转写杂物。
    右侧顶部的「导出目录」按钮可以直接打开这个文件夹（首次需运行一次 `deploy\注册导出目录协议.ps1`）；
-   「导出 Markdown」仍然只下单个 md（不含图）。
-
+   
 ### 时间戳的位置
 
 「原片跳转」生成的是**标题下一行单独一行**，不和标题挤在一起：
@@ -123,9 +122,9 @@ Docker 的代理模式是 **System proxy**，意思是「容器跟随 Windows �
 如果你是从网页手动下的单个 md（里面还是 `![](/static/screenshots/xxx.jpg)` 这种网站路径），才需要用脚本补：
 
 ```powershell
-.\整理笔记图片.ps1 -MdPath "D:\笔记\xxx.md"              # 图片复制到 xxx.assets\，改相对路径（离线可用）
-.\整理笔记图片.ps1 -MdPath "D:\笔记\xxx.md" -Mode url    # 改成 http://127.0.0.1:3015/...（需服务在跑）
-.\整理笔记图片.ps1 -MdPath "D:\笔记\xxx.md" -Mode base64 # 图片内嵌进 md，单文件但体积大
+.\deploy\tools\整理笔记图片.ps1 -MdPath "D:\笔记\xxx.md"              # 图片复制到 xxx.assets\，改相对路径（离线可用）
+.\deploy\tools\整理笔记图片.ps1 -MdPath "D:\笔记\xxx.md" -Mode url    # 改成 http://127.0.0.1:3015/...（需服务在跑）
+.\deploy\tools\整理笔记图片.ps1 -MdPath "D:\笔记\xxx.md" -Mode base64 # 图片内嵌进 md，单文件但体积大
 ```
 
 ---
@@ -136,7 +135,7 @@ Docker 的代理模式是 **System proxy**，意思是「容器跟随 Windows �
 D:\Project_OpenSource\bilibili_note\
 ├─ 启动BiliNote.bat          ★ 日常双击
 ├─ deploy\                     底层脚本（启动/构建/补导/协议/supervisord.conf）
-├─ 整理笔记图片.ps1           导出 md 的图片整理
+│  └─ tools\                  图片整理 / 清理残留
 ├─ Dockerfile.local          把修复固化进镜像（分享用）
 ├─ docker-data\
 │  ├─ data\
@@ -154,7 +153,7 @@ D:\Project_OpenSource\bilibili_note\
 - **你在网页看到的笔记正文来自浏览器 IndexedDB**，服务端另存了一份快照（`note_results`）
 - **网页点删除现在会真删**：结果文件 + 截图 + 临时媒体 + 向量索引 + 数据库记录（上游是空实现，本仓库已修）
 - **临时音视频在任务结束时自动清理**（上游从不清理）
-- 截图不会自动清，用 `清理残留.ps1` 扫描/清理（默认只统计，`-Apply` 才真删）
+- 截图不会自动清，用 `deploy\tools\清理残留.ps1` 扫描/清理（默认只统计，`-Apply` 才真删）
 - 视频理解/截图产生的抽帧目录（`data\grid_output`、`data\output_frames`）在任务结束时会自动清空
 
 ---
@@ -189,7 +188,7 @@ D:\Project_OpenSource\bilibili_note\
 | `deploy\注册导出目录协议.ps1` | 注册 `bilinote://` 协议，让网页按钮能打开成品目录（HKCU，可 `-Unregister`） |
 | `deploy\补导出笔记.ps1` | 把已有历史笔记补导出到成品目录（`-TaskId` / `-All`） |
 | `整理笔记图片.ps1` | 手动整理的备用方案：图片本地化 / 转 URL / 内嵌 base64 |
-| `清理残留.ps1` | 扫描并清理孤儿截图、抽帧、临时媒体、失败任务 |
+| `deploy\tools\清理残留.ps1` | 扫描并清理孤儿截图、抽帧、临时媒体、失败任务 |
 | `deploy\构建镜像.ps1` | 一键重建本地镜像（拉上游 + 构建前端 + 打包镜像） |
 | `Dockerfile.local` | 把上述修复固化进镜像 |
 
