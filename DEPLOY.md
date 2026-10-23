@@ -195,3 +195,16 @@ docker pull ghcr.io/jefferyhcool/bilinote:latest
 - 网页：生成完成弹提示；新增「导出目录」按钮，走 `bilinote://` 协议（`deploy\注册导出目录协议.ps1` 注册，HKCU，可 `-Unregister`）；「导出 Markdown」恢复为单 md（zip 已移除）。
 - 清理：删除 `data\data`、`grid_output`、`output_frames`、`models\whisper\.locks` 等空目录/锁文件。
 - 注意：`bilinote_output_docs` 是用户数据，不进 git；换目录要同时改 `deploy\start-bilinote.ps1` 的 `$exportDir` 和 `注册导出目录协议.ps1 -Dir`。
+
+## 9. 抖音支持（无头浏览器兜底）
+
+抖音自 2026 起对 `aweme/detail` 接口加 Argus 风控：签名由页面 JS 现场生成，纯 requests（哪怕 Cookie 完整）会返回
+`Blocked by ArgusSecurityPlugin Uifid Not Found`。因此镜像里装了 **Playwright + Chromium**，当接口被拦时：
+
+1. 用无头 Chromium 带着用户 Cookie 打开视频页
+2. 截获页面自己发出的 `/aweme/v1/web/aweme/detail/` 响应（含合法签名）
+3. 解析 `aweme_detail`，再走原来的下载逻辑
+
+代价：镜像从 2.6GB 增加到约 3.6GB；每个抖音视频首次解析多 20~40 秒；仍然需要用户在「下载配置 → 抖音」填 Cookie。
+`playwright==1.48.0` + Chromium 1140，走 npmmirror 镜像下载（`PLAYWRIGHT_DOWNLOAD_HOST`），Debian 12 不能直接用
+`playwright install --with-deps`（会按 Ubuntu 包名装失败），Dockerfile 里是手动装的运行库。

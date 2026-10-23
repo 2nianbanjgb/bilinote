@@ -181,6 +181,95 @@ class DouyinDownloader(Downloader):
         except Exception as e:
             raise ValueError("Douyin msToken API{0}".format(e))
 
+    def _cookies_from_config(self):
+        raw = self.headers_config.get("Cookie") or ""
+        cookies = []
+        for part in raw.split(";"):
+            part = part.strip()
+            if "=" not in part:
+                continue
+            name, value = part.split("=", 1)
+            name = name.strip()
+            if not name:
+                continue
+            cookies.append({
+                "name": name,
+                "value": value,
+                "domain": ".douyin.com",
+                "path": "/",
+            })
+        return cookies
+
+    def _fetch_via_browser(self, video_url: str):
+        """用无头 Chromium 打开视频页，截获页面自己发出的 aweme/detail 响应。
+
+        抖音的接口签名由页面 JS 现场生成，纯 requests 会被 Argus 拦；浏览器里跑一遍就能拿到合法数据。
+        """
+        from playwright.sync_api import sync_playwright
+
+        captured = {}
+
+        def on_response(resp):
+            try:
+                if "/aweme/v1/web/aweme/detail/" in resp.url:
+                    data = resp.json()
+                    if isinstance(data, dict) and data.get("aweme_detail"):
+                        captured["data"] = data
+            except Exception:
+                pass
+
+        with sync_playwright() as p:
+            browser = p.chromium.launch(
+                headless=True,
+                args=[
+                    "--no-sandbox",
+                    "--disable-dev-shm-usage",
+                    "--disable-blink-features=AutomationControlled",
+                ],
+            )
+            context = browser.new_context(
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                           "(KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+                locale="zh-CN",
+                viewport={"width": 1280, "height": 800},
+            )
+            cookies = self._cookies_from_config()
+            if cookies:
+                try:
+                    context.add_cookies(cookies)
+                except Exception as exc:
+                    print("注入 Cookie 失败:", exc)
+            page = context.new_page()
+            page.on("response", on_response)
+            try:
+                page.goto(video_url, wait_until="domcontentloaded", timeout=45000)
+            except Exception as exc:
+                print("页面打开告警:", exc)
+
+            for _ in range(40):
+                if captured.get("data"):
+                    break
+                page.wait_for_timeout(500)
+
+            if not captured.get("data"):
+                # 兜底：页面内嵌的 _ROUTER_DATA
+                try:
+                    html = page.content()
+                    m = re.search(r"window\._ROUTER_DATA\s*=\s*(\{.*?\});", html, re.S)
+                    if m:
+                        data = json.loads(m.group(1))
+                        page_data = (data.get("loaderData") or {}).get("video_(id)/page", {})
+                        items = (page_data.get("videoInfoRes") or {}).get("item_list") or []
+                        if items:
+                            captured["data"] = {"aweme_detail": items[0]}
+                except Exception as exc:
+                    print("解析页面内嵌数据失败:", exc)
+            browser.close()
+
+        if captured.get("data"):
+            return captured["data"]
+        raise ValueError("无头浏览器未拿到视频数据（Cookie 可能失效，或视频不可见）")
+
     def fetch_video_info(self, video_url: str) -> json:
         try:
 
@@ -214,7 +303,12 @@ class DouyinDownloader(Downloader):
             return response.json()
         except Exception as e:
             print("请求失败:", e)
-            raise ValueError("请求失败:", e)
+            try:
+                print("尝试无头浏览器兜底...")
+                return self._fetch_via_browser(video_url)
+            except Exception as be:
+                print("无头浏览器兜底失败:", be)
+                raise ValueError("请求失败:", e)
         # print(kwargs)
 
     def download(

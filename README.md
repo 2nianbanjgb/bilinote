@@ -171,7 +171,7 @@ D:\Project_OpenSource\bilibili_note\
 | 笔记里没有截图 | 没开「视频理解」；或走了旧音频缓存（本仓库已修，仍建议重新生成一次） |
 | 时间戳点了回开头 | 旧版本 bug（链接少了 `?`），本仓库已修 |
 | 模型报 404 / 不存在 | `deepseek-chat` 已下线，用 `deepseek-flash` |
-| 抖音报 `JSONDecodeError` / 请求失败 | 两种原因：① 链接里没有具体视频 ID（纯主页/收藏夹/直播）→ 用 `/video/数字`、`v.douyin.com` 短链，或主页点开视频后带 `modal_id=数字` 的链接；② 有视频 ID 仍失败 → 抖音风控，去「设置 → 下载配置 → 抖音」填 Cookie（含 `ttwid` / `UIFID` / `msToken`） |
+| 抖音报 `JSONDecodeError` / 请求失败 | ① 纯主页/收藏夹/直播没有视频 ID → 用 `/video/数字`、`v.douyin.com` 短链，或主页点开视频后带 `modal_id=数字` 的链接；② 有 ID 仍失败 → 先确认「设置 → 下载配置 → 抖音」填了 Cookie（`ttwid` / `UIFID` 等）。项目内置了无头 Chromium 兜底（页面 JS 自己算签名），首次解析会多花 20~40 秒；视频私密/仅自己可见仍拿不到 |
 | 网页打不开 | Docker 没起来，先双击 `启动BiliNote.bat`；端口冲突用 `-Port` |
 | 生成很慢 | 长视频先用「必剪」在线转写，或把 whisper 切到 `tiny` |
 | 磁盘涨得快 | 清 `static\screenshots\` 和 `data\data\`；whisper 模型 141MB 可留 |

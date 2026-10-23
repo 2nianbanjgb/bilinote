@@ -24,3 +24,14 @@ COPY backend/app/db/video_task_dao.py /app/backend/app/db/video_task_dao.py
 COPY deploy/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 # 前端重新构建：下载按钮改为打包 zip（md + 同名图片文件夹）
 COPY ./frontend-dist /usr/share/nginx/html
+# 抖音接口签名由页面 JS 生成，纯 requests 会被 Argus 拦；装无头 Chromium 兜底
+# 注意：Debian 12 上不能用 `playwright install --with-deps`（它按 Ubuntu 装包，会失败），
+# 这里手动装 Chromium 运行库，再只下载浏览器本体。
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
+        libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 \
+        libgbm1 libasound2 libpango-1.0-0 libcairo2 libatspi2.0-0 \
+        libx11-xcb1 libxext6 libxi6 libxtst6 fonts-liberation libvulkan1 \
+    && pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple playwright==1.48.0 \
+    && PLAYWRIGHT_DOWNLOAD_HOST=https://cdn.npmmirror.com/binaries/playwright python -m playwright install chromium \
+    && rm -rf /var/lib/apt/lists/*
