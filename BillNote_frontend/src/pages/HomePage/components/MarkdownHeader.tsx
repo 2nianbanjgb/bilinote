@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Copy, Download, BrainCircuit, MessageSquare } from 'lucide-react'
+import { Copy, Download, BrainCircuit, MessageSquare, FolderOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -26,6 +26,7 @@ interface NoteHeaderProps {
   noteStyles: { value: string; label: string }[]
   onCopy: () => void
   onDownload: () => void
+  onOpenFolder?: () => void
   createAt?: string | Date
   setShowTranscribe: (show: boolean) => void
   showChat?: false | 'half' | 'full'
@@ -42,6 +43,7 @@ export function MarkdownHeader({
   noteStyles,
   onCopy,
   onDownload,
+  onOpenFolder,
   createAt,
   showTranscribe,
   setShowTranscribe,
@@ -169,6 +171,19 @@ export function MarkdownHeader({
             <TooltipContent>下载为 Markdown 文件</TooltipContent>
           </Tooltip>
         </TooltipProvider>
+        {onOpenFolder && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button onClick={onOpenFolder} variant="ghost" size="sm" className="h-8 px-2">
+                  <FolderOpen className="mr-1.5 h-4 w-4" />
+                  <span className="text-sm">导出目录</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>打开成品导出目录</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>

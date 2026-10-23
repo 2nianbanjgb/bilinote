@@ -89,8 +89,17 @@ Docker 的代理模式是 **System proxy**，意思是「容器跟随 Windows �
    - **AI 总结**：结尾加一段摘要
 4. 「备注」可写额外要求，比如 `每节最多一张截图，总共不超过 10 张`
 5. 点「生成笔记」，等步骤条走完（下载 → 转写 → 总结 → 保存）
-6. 右侧预览顶部有 **复制** 和 **下载**：有截图时下载 `<标题>.zip`（内含 `<标题>.md` + `<标题>/` 图片文件夹，
-   md 里的路径自动改成相对路径，解压即用）；没有截图时直接下载 `<标题>.md`
+6. **生成成功后会自动导出成品**到 `bilinote_output_docs\`：
+
+   ```
+   bilinote_output_docs\
+   ├─ <标题>.md
+   └─ <标题>\              只有这篇笔记引用到的截图
+   ```
+
+   md 里是 `./<标题>/xxx.jpg` 相对路径（空格会转义成 %20），整个文件夹拷走就能看，没有任何 json/转写杂物。
+   右侧顶部的「导出目录」按钮可以直接打开这个文件夹（首次需运行一次 `注册导出目录协议.ps1`）；
+   「导出 Markdown」仍然只下单个 md（不含图）。
 
 ### 时间戳的位置
 
@@ -110,7 +119,8 @@ Docker 的代理模式是 **System proxy**，意思是「容器跟随 Windows �
 
 ### 导出后的图片怎么办
 
-md 里写的是 `![](/static/screenshots/xxx.jpg)`，这只是**网站路径**。图片本体在 `docker-data\static\screenshots\`，本地编辑器解析不了。用附带脚本处理：
+**正常情况不用管**：成品已经自动导出成「md + 同名图片文件夹」，见上面第 6 步。
+如果你是从网页手动下的单个 md（里面还是 `![](/static/screenshots/xxx.jpg)` 这种网站路径），才需要用脚本补：
 
 ```powershell
 .\整理笔记图片.ps1 -MdPath "D:\笔记\xxx.md"              # 图片复制到 xxx.assets\，改相对路径（离线可用）
@@ -136,6 +146,7 @@ D:\Project_OpenSource\bilibili_note\
 │  │  └─ data\                临时 mp3/mp4（任务结束会自动删）
 │  ├─ config\                 转写器、代理、各平台 Cookie
 │  ├─ static\screenshots\     截图（会累积）
+├─ bilinote_output_docs\      ★ 自动导出的成品：<标题>.md + <标题>\ 图片目录
 │  ├─ vector_db\              AI 问答向量索引（已挂载，重建容器不丢）
 │  └─ models\                 whisper 模型（base 已预下载，141MB）
 └─ DEPLOY.md                 运维细节与踩坑记录
@@ -174,7 +185,10 @@ D:\Project_OpenSource\bilibili_note\
 | `backend/app/gpt/prompt_builder.py` | 固定规则：标题/小标题不编号（交给 Markdown 编辑器编号） |
 | `supervisord.conf` | `HF_ENDPOINT` 直连 huggingface.co（hf-mirror 的 308 缺 `x-linked-size`） |
 | `start-bilinote.ps1` / `启动BiliNote.bat` | 一键启动 + 把上面几个文件挂载进容器 |
-| `BillNote_frontend/src/utils/zip.ts` + `MarkdownViewer.tsx` | 下载按钮改为打包 zip（md + 同名图片文件夹），前端已重新构建 |
+| `backend/app/services/note.py` | 生成成功后自动导出干净成品（md + 同名图片目录，空格转义）；补导接口 `POST /api/export_note/{task_id}` |
+| `BillNote_frontend/.../MarkdownViewer.tsx` + `MarkdownHeader.tsx` | 生成完成弹提示；新增「导出目录」按钮（`bilinote://` 协议）；下载按钮恢复为单 md |
+| `注册导出目录协议.ps1` | 注册 `bilinote://` 协议，让网页按钮能打开成品目录（HKCU，可 `-Unregister`） |
+| `补导出笔记.ps1` | 把已有历史笔记补导出到成品目录（`-TaskId` / `-All`） |
 | `整理笔记图片.ps1` | 手动整理的备用方案：图片本地化 / 转 URL / 内嵌 base64 |
 | `清理残留.ps1` | 扫描并清理孤儿截图、抽帧、临时媒体、失败任务 |
 | `构建镜像.ps1` | 一键重建本地镜像（拉上游 + 构建前端 + 打包镜像） |

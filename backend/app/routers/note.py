@@ -242,6 +242,25 @@ def delete_task(data: RecordRequest):
         return R.error(msg=str(e))
 
 
+@router.post('/export_note/{task_id}')
+def export_note(task_id: str):
+    """把已有结果补导出到成品目录（不改笔记内容）。"""
+    try:
+        result_path = Path(NOTE_OUTPUT_DIR) / f"{task_id}.json"
+        if not result_path.exists():
+            return R.error(msg='任务结果不存在')
+        data = json.loads(result_path.read_text(encoding="utf-8"))
+        meta = data.get("audio_meta") or {}
+        title = meta.get("title") or meta.get("video_id") or task_id
+        path = NoteGenerator._export_clean(data.get("markdown", "") or "", title)
+        if not path:
+            return R.error(msg='导出失败，请看后端日志')
+        return R.success(msg=f'已导出：{path}')
+    except Exception as e:
+        logger.error(f"补导出失败: {e}")
+        return R.error(msg=str(e))
+
+
 @router.post("/upload")
 async def upload(file: UploadFile = File(...)):
     os.makedirs(UPLOAD_DIR, exist_ok=True)

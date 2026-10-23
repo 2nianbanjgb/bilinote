@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import re
+import shutil
 from dataclasses import asdict
 from pathlib import Path
 from typing import List, Optional, Tuple, Union, Any
@@ -51,6 +52,8 @@ BACKEND_BASE_URL = f"{API_BASE_URL}:{BACKEND_PORT}"
 
 # 输出目录（用于缓存音频、转写、Markdown 文件，以及存储截图）
 NOTE_OUTPUT_DIR = Path(os.getenv("NOTE_OUTPUT_DIR", "note_results"))
+# 干净成品导出目录：<标题>.md + <标题>/ 图片，只放这两样
+NOTE_EXPORT_DIR = Path(os.getenv("NOTE_EXPORT_DIR", "exports"))
 NOTE_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 IMAGE_OUTPUT_DIR = os.getenv("OUT_DIR", "./static/screenshots")
 # 图片基础 URL（用于生成 Markdown 中的图片链接，需前端静态目录对应）
@@ -230,7 +233,10 @@ class NoteGenerator:
 
             markdown = prepend_source_link(markdown, str(video_url))
 
-            # 5. 清理临时音视频（截图/视频理解都已处理完，文件不再需要）
+            # 5. 导出干净成品（md + 同名图片目录）
+            self._export_clean(markdown, audio_meta.title or audio_meta.video_id)
+
+            # 6. 清理临时音视频（截图/视频理解都已处理完，文件不再需要）
             self._cleanup_media_files(audio_meta)
 
             # 6. 保存记录到数据库
@@ -247,6 +253,48 @@ class NoteGenerator:
             self._cleanup_media_files(audio_meta)
             self._update_status(task_id, TaskStatus.FAILED, message=str(exc))
             return None
+
+    @staticmethod
+    def _export_clean(markdown: str, title: str) -> str:
+        """导出成品：<标题>.md + <标题>/ 图片目录，md 内路径改成相对路径。
+
+        只复制这篇 md 实际引用的图片；同名覆盖；目录里不留 json/转写等杂物。
+        返回写入的 md 路径（失败返回空串，不影响笔记生成）。
+        """
+        try:
+            safe = re.sub(r'[\\/:*?"<>|\r\n]+', "_", title or "").strip().strip(".") or "note"
+            safe = safe[:80]
+            out_root = Path(NOTE_EXPORT_DIR)
+            out_root.mkdir(parents=True, exist_ok=True)
+            img_dir = out_root / safe
+            md_path = out_root / f"{safe}.md"
+
+            files = set(x.strip() for x in re.findall(r"/static/screenshots/([^)\s]+)", markdown))
+            new_md = markdown
+            copied = 0
+            for name in files:
+                src = Path(IMAGE_OUTPUT_DIR) / name
+                if not src.is_file():
+                    continue
+                img_dir.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src, img_dir / name)
+                # md 里的路径要转义空格，否则 Markdown 的 ![]( ) 语法会断
+                link = f"./{safe.replace(' ', '%20')}/{name.replace(' ', '%20')}"
+                new_md = new_md.replace(f"/static/screenshots/{name}", link)
+                copied += 1
+
+            # 覆盖导出时删掉上一版留下、这次没引用的图片
+            if img_dir.exists():
+                for old in img_dir.glob("*"):
+                    if old.is_file() and old.name not in files:
+                        old.unlink(missing_ok=True)
+
+            md_path.write_text(new_md, encoding="utf-8")
+            logger.info(f"成品已导出：{md_path}（图片 {copied} 张）")
+            return str(md_path)
+        except Exception as exc:
+            logger.warning(f"导出成品失败（不影响笔记）：{exc}")
+            return ""
 
     def _delete_previous_screenshots(self, task_id: str) -> None:
         """删除上一版结果里引用过的截图（同一 task 重新生成时调用）。"""

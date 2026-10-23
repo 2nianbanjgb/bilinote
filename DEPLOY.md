@@ -188,3 +188,10 @@ docker pull ghcr.io/jefferyhcool/bilinote:latest
 | 本地镜像 | 新增 `构建镜像.ps1`（拉上游 → vite build → 导出 dist → 打包 `bilinote-fixed`）；`start-bilinote.ps1` 自动优先用本地镜像 |
 
 当前状态：`docker-data` 已从约 175MB 清到 141MB（删了 183 张孤儿截图 + 87 个抽帧文件，共 30.75MB）。
+## 8. 第三批改动（2026-10-23）：自动导出成品
+
+- 生成成功后，后端自动导出到 `bilinote_output_docs\`：`<标题>.md` + `<标题>\`（只含被引用的截图，md 路径为 `./<标题>/xxx.jpg`，空格转义 `%20`），同名覆盖。
+- 新增 `POST /api/export_note/{task_id}` 补导接口；`补导出笔记.ps1 -TaskId <id> | -All` 调用它。
+- 网页：生成完成弹提示；新增「导出目录」按钮，走 `bilinote://` 协议（`注册导出目录协议.ps1` 注册，HKCU，可 `-Unregister`）；「导出 Markdown」恢复为单 md（zip 已移除）。
+- 清理：删除 `data\data`、`grid_output`、`output_frames`、`models\whisper\.locks` 等空目录/锁文件。
+- 注意：`bilinote_output_docs` 是用户数据，不进 git；换目录要同时改 `start-bilinote.ps1` 的 `$exportDir` 和 `注册导出目录协议.ps1 -Dir`。

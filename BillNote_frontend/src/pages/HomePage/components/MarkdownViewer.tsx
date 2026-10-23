@@ -3,7 +3,6 @@ import ReactMarkdown from 'react-markdown'
 import { Button } from '@/components/ui/button.tsx'
 import { Copy, Download, ArrowRight, Play, ExternalLink } from 'lucide-react'
 import { toast } from 'react-hot-toast'
-import { createZip, type ZipEntry } from '@/utils/zip.ts'
 import Error from '@/components/Lottie/error.tsx'
 import Loading from '@/components/Lottie/Loading.tsx'
 import Idle from '@/components/Lottie/Idle.tsx'
@@ -17,6 +16,9 @@ import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
 import rehypeSlug from 'rehype-slug'
 import 'katex/dist/katex.min.css'
+
+// 后端自动导出成品的目录（md + 同名图片文件夹）
+const EXPORT_DIR = 'D:\\Project_OpenSource\\bilibili_note\\bilinote_output_docs'
 import 'github-markdown-css/github-markdown-light.css'
 import { ScrollArea } from '@/components/ui/scroll-area.tsx'
 import { useTaskStore } from '@/store/taskStore'
@@ -414,47 +416,36 @@ const MarkdownViewer: FC<MarkdownViewerProps> = memo(({ status }) => {
     setTimeout(() => URL.revokeObjectURL(link.href), 2000)
   }
 
-  // 下载：有截图就打包成 同名.zip（内含 同名.md + 同名/ 图片目录），没截图就只下 md
-  const handleDownload = async () => {
+  // 只下 md；带图片的成品已由后端自动导出到 bilinote_output_docs
+  const handleDownload = () => {
     const task = getCurrentTask()
-    const rawName = task?.audioMeta.title || 'note'
-    const name = rawName.replace(/[\\/:*?"<>|]/g, '_').trim() || 'note'
-    const content = selectedContent || ''
-
-    const images = Array.from(
-      new Set(
-        Array.from(content.matchAll(/\/static\/screenshots\/([^)\s]+)/g)).map(m => m[1])
-      )
-    )
-
-    if (images.length === 0) {
-      downloadBlob(new Blob([content], { type: 'text/markdown;charset=utf-8' }), `${name}.md`)
-      return
-    }
-
-    try {
-      const entries: ZipEntry[] = []
-      let rewritten = content
-      for (const file of images) {
-        const res = await fetch(`/static/screenshots/${file}`)
-        if (!res.ok) continue
-        const data = new Uint8Array(await res.arrayBuffer())
-        entries.push({ name: `${name}/${file}`, data })
-        rewritten = rewritten.split(`/static/screenshots/${file}`).join(`./${name}/${file}`)
-      }
-      if (entries.length === 0) {
-        downloadBlob(new Blob([content], { type: 'text/markdown;charset=utf-8' }), `${name}.md`)
-        return
-      }
-      entries.unshift({ name: `${name}.md`, data: new TextEncoder().encode(rewritten) })
-      downloadBlob(createZip(entries), `${name}.zip`)
-      toast.success(`已打包 ${entries.length - 1} 张图片`)
-    } catch (e) {
-      console.error('打包 zip 失败', e)
-      toast.error('打包失败，已改为下载 md')
-      downloadBlob(new Blob([content], { type: 'text/markdown;charset=utf-8' }), `${name}.md`)
-    }
+    const name = (task?.audioMeta.title || 'note').replace(/[\\/:*?"<>|]/g, '_').trim() || 'note'
+    downloadBlob(new Blob([selectedContent], { type: 'text/markdown;charset=utf-8' }), `${name}.md`)
   }
+
+  // 打开成品导出目录：复制路径 + 尝试调用 bilinote:// 协议
+  const handleOpenFolder = () => {
+    try {
+      navigator.clipboard?.writeText(EXPORT_DIR)
+    } catch (e) {
+      // ignore
+    }
+    toast.success('已复制导出目录路径')
+    window.location.href = 'bilinote://open'
+  }
+
+  // 生成完成提示（每次任务只提示一次）
+  const notifiedRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (taskStatus === 'SUCCESS' && currentTask?.id) {
+      if (notifiedRef.current !== currentTask.id) {
+        notifiedRef.current = currentTask.id
+        toast.success('生成完毕，成品已导出到 bilinote_output_docs')
+      }
+    } else if (taskStatus !== 'SUCCESS') {
+      notifiedRef.current = null
+    }
+  }, [taskStatus, currentTask?.id])
 
   if (status === 'loading') {
     return (
@@ -509,6 +500,7 @@ const MarkdownViewer: FC<MarkdownViewerProps> = memo(({ status }) => {
         noteStyles={noteStyles}
         onCopy={handleCopy}
         onDownload={handleDownload}
+        onOpenFolder={handleOpenFolder}
         createAt={createTime}
         showTranscribe={showTranscribe}
         setShowTranscribe={setShowTranscribe}

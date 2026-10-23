@@ -36,11 +36,12 @@ $configDir = Join-Path $root 'docker-data\config'
 $staticDir = Join-Path $root 'docker-data\static'
 $modelsDir = Join-Path $root 'docker-data\models'
 $vectorDir = Join-Path $root 'docker-data\vector_db'
+$exportDir = Join-Path $root 'bilinote_output_docs'
 $supConf   = Join-Path $root 'supervisord.conf'
 $image     = 'ghcr.io/jefferyhcool/bilinote:latest'
 $name      = 'bilinote'
 
-foreach ($d in @($dataDir, $configDir, $staticDir, $modelsDir, $vectorDir)) {
+foreach ($d in @($dataDir, $configDir, $staticDir, $modelsDir, $vectorDir, $exportDir)) {
     New-Item -ItemType Directory -Force -Path $d | Out-Null
 }
 
@@ -66,6 +67,7 @@ docker run -d --name $name --restart unless-stopped -p "${Port}:80" `
     --mount "type=bind,source=$staticDir,target=/app/backend/static" `
     --mount "type=bind,source=$modelsDir,target=/app/backend/models" `
     --mount "type=bind,source=$vectorDir,target=/app/backend/vector_db" `
+    --mount "type=bind,source=$exportDir,target=/app/backend/exports" `
     --mount "type=bind,source=$supConf,target=/etc/supervisor/conf.d/supervisord.conf" `
     --mount "type=bind,source=$root\backend\app\services\note.py,target=/app/backend/app/services/note.py" `
     --mount "type=bind,source=$root\backend\app\utils\note_helper.py,target=/app/backend/app/utils/note_helper.py" `
