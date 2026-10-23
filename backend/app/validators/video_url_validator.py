@@ -7,8 +7,8 @@ from app.utils.url_parser import normalize_video_url
 SUPPORTED_PLATFORMS = {
     "bilibili": r"(https?://)?(www\.)?bilibili\.com/video/[a-zA-Z0-9]+",
     "youtube": r"(https?://)?(www\.)?(youtube\.com/(watch\?v=|shorts/)|youtu\.be/)[\w\-]+",
-    "douyin": "douyin",
-    "kuaishou": "kuaishou"
+    "douyin": r"(v\.douyin\.com/[\w\-]+|(www\.)?douyin\.com/video/\d+|iesdouyin\.com/share/video/\d+)",
+    "kuaishou": r"(v\.kuaishou\.com/[\w\-]+|(www\.)?kuaishou\.com/(short-video|f)/[\w\-]+)"
 }
 
 
@@ -20,12 +20,8 @@ def is_supported_video_url(url: str) -> bool:
         return True
 
     for name, pattern in SUPPORTED_PLATFORMS.items():
-        if pattern in ["douyin", "kuaishou"]:
-            if pattern in url:
-                return True
-        else:
-            if re.match(pattern, url):
-                return True
+        if re.search(pattern, url):
+            return True
     return False
 
 
@@ -43,5 +39,5 @@ class VideoRequest(BaseModel):
     @field_validator("url")
     def validate_video_url(cls, v):
         if not is_supported_video_url(str(v)):
-            raise ValueError("暂不支持该视频平台或链接格式无效")
+            raise ValueError("只支持单个视频链接：抖音请用 https://www.douyin.com/video/数字 或 v.douyin.com 分享短链，不支持主页/收藏夹/直播")
         return v

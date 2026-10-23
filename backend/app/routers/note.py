@@ -72,7 +72,7 @@ class VideoRequest(BaseModel):
             # 是网络链接，继续用原有平台校验
             if not is_supported_video_url(url):
                 raise NoteError(code=NoteErrorEnum.PLATFORM_NOT_SUPPORTED.code,
-                                message=NoteErrorEnum.PLATFORM_NOT_SUPPORTED.message)
+                                message="链接不受支持：请粘贴单个视频链接（B 站 /video/BV…、抖音 /video/数字 或 v.douyin.com 短链），不支持主页/收藏夹/直播")
 
         return v
 
