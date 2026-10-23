@@ -1,0 +1,18 @@
+# 把本地修好的代码固化进镜像（适合分享给别人 / 不想用源码挂载的场景）
+#
+# 用法：
+#   docker build -f Dockerfile.local -t bilinote-fixed:latest .
+#   docker run -d --name bilinote -p 3015:80 bilinote-fixed:latest
+#
+# 说明：只覆盖修复过的几个文件，其余完全沿用官方镜像，构建只需几秒（不需要重新装依赖）。
+ARG BASE_IMAGE=ghcr.io/jefferyhcool/bilinote:latest
+FROM ${BASE_IMAGE}
+
+# 修复：重试时音频缓存跳过视频下载，导致截图无图可插
+COPY backend/app/services/note.py /app/backend/app/services/note.py
+# 修复：*Content-[mm:ss]* 替换抛 UnboundLocalError；B 站链接漏 ? 导致跳转失效
+COPY backend/app/utils/note_helper.py /app/backend/app/utils/note_helper.py
+# 偏好：标题不编号（Markdown 编辑器自动编号）
+COPY backend/app/gpt/prompt_builder.py /app/backend/app/gpt/prompt_builder.py
+# 模型下载源：hf-mirror 的 308 缺 x-linked-size，改成直连 huggingface.co
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf

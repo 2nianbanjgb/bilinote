@@ -63,6 +63,7 @@ docker run -d --name $name --restart unless-stopped -p "${Port}:80" `
     --mount "type=bind,source=$supConf,target=/etc/supervisor/conf.d/supervisord.conf" `
     --mount "type=bind,source=$root\backend\app\services\note.py,target=/app/backend/app/services/note.py" `
     --mount "type=bind,source=$root\backend\app\utils\note_helper.py,target=/app/backend/app/utils/note_helper.py" `
+    --mount "type=bind,source=$root\backend\app\gpt\prompt_builder.py,target=/app/backend/app/gpt/prompt_builder.py" `
     $image
 
 Write-Host ''

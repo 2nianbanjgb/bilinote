@@ -40,6 +40,13 @@ def generate_base_prompt(title, segment_text, tags, _format=None, style=None, ex
     # 添加额外内容
     if extras:
         prompt += f"\n{extras}"
+
+    # 用户偏好：标题不编号（Markdown 编辑器会自动编号），避免出现「## 1. xxx」
+    prompt += (
+        "\n- 不要给任何标题或小标题添加编号"
+        "（例如不要写「## 1. xxx」「### 2.1 xxx」「## 一、xxx」），"
+        "标题只保留文字本身，不要加序号、也不要加「第X部分」这类前缀。"
+    )
     return prompt
 
 

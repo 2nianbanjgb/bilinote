@@ -145,3 +145,32 @@ docker pull ghcr.io/jefferyhcool/bilinote:latest
     `.\整理笔记图片.ps1 -MdPath "D:\笔记\xxx.md" -Mode url`     # 改成 http://127.0.0.1:3015/static/...（需服务在跑）
     `.\整理笔记图片.ps1 -MdPath "D:\笔记\xxx.md" -Mode base64`  # 图片内嵌进 md，单文件但体积大
     也可以 `-TaskId <id>` 直接从服务端结果导出。默认不覆盖原文件，输出 `xxx.local.md`。
+## 6. 本地相对上游改了什么（重启 / 重建 / 分享都看这一节）
+
+| 文件 | 改了什么 | 生效方式 |
+|---|---|---|
+| `backend/app/services/note.py` | 需要截图/视频理解时不再复用音频缓存（否则永远不下视频、截图无图可插） | bind mount 进容器 |
+| `backend/app/utils/note_helper.py` | 修 UnboundLocalError（时间戳链接整段失效）；B 站链接补 `?t=`；吃掉标记尾部的 `*` | bind mount 进容器 |
+| `backend/app/gpt/prompt_builder.py` | 追加固定规则：标题/小标题不编号 | bind mount 进容器 |
+| `supervisord.conf` | `HF_ENDPOINT` 改直连 huggingface.co（hf-mirror 的 308 缺头） | bind mount 进容器 |
+| `start-bilinote.ps1` | 挂载上面 4 个文件 + 4 个数据目录 | 每次建容器时执行 |
+| `启动BiliNote.bat` | 双击启动：拉起 Docker → 建/启动容器 → 开浏览器 | 手动运行 |
+| `整理笔记图片.ps1` | 把 md 里的 `/static/screenshots/...` 变成本地可看 | 手动运行 |
+| `Dockerfile.local` | 把上面 4 个文件固化进镜像 | `docker build -f Dockerfile.local -t bilinote-fixed:latest .` |
+
+**重启电脑 / `docker rm` 重建容器 / `-Recreate` 后都仍然生效**，因为文件在 D 盘仓库里，启动脚本每次都重新挂进去。
+
+但注意：如果你**绕过启动脚本**直接 `docker run ghcr.io/jefferyhcool/bilinote:latest`，或者按上游 README 用
+`docker-compose up`，这些修复**不会生效**（那两个是原始代码）。
+
+### 分享给别人
+
+- **最省事**：让对方 clone 后执行
+  `docker build -f Dockerfile.local -t bilinote-fixed:latest .`
+  然后用这个镜像跑，修复已经固化，不依赖源码挂载。
+- 或者让对方用自己的路径跑 `start-bilinote.ps1`（脚本里路径是 `D:\Project_OpenSource\bilibili_note`，要改）。
+- **不会跟着仓库走的东西**：`docker-data\`（数据库、笔记、截图、whisper 模型、Cookie、API Key）、
+  Docker Desktop 的代理设置、系统代理开关。这些每个人自己配。
+
+上游本身还有没修的问题（我没动）：`/delete_task` 是空实现（网页删任务不删文件）、
+音视频不自动删、设置里的「Prompt」页是空占位。
