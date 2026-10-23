@@ -30,14 +30,15 @@ param(
 )
 
 $ErrorActionPreference = 'Continue'
-$root = $PSScriptRoot
+# 脚本在 deploy/ 里，项目根目录是它的上一级
+$root = Split-Path -Parent $PSScriptRoot
 $dataDir   = Join-Path $root 'docker-data\data'
 $configDir = Join-Path $root 'docker-data\config'
 $staticDir = Join-Path $root 'docker-data\static'
 $modelsDir = Join-Path $root 'docker-data\models'
 $vectorDir = Join-Path $root 'docker-data\vector_db'
 $exportDir = Join-Path $root 'bilinote_output_docs'
-$supConf   = Join-Path $root 'supervisord.conf'
+$supConf   = Join-Path $PSScriptRoot 'supervisord.conf'
 $image     = 'ghcr.io/jefferyhcool/bilinote:latest'
 $name      = 'bilinote'
 

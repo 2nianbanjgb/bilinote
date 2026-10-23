@@ -2,7 +2,7 @@
 
 把 B 站 / YouTube / 抖音 / 快手的视频链接变成结构化 Markdown 笔记：自动抓字幕或转写、用大模型总结、可选插入原片截图和时间戳跳转。
 
-本仓库基于 [JefferyHcool/BiliNote](https://github.com/JefferyHcool/BiliNote)（MIT），**额外修了几个上游 bug**（见「相对上游的改动」），并把部署方式固定为 Windows + Docker Desktop 单镜像。上游原始 README 保留在 [README.upstream.md](README.upstream.md)。
+本仓库基于 [JefferyHcool/BiliNote](https://github.com/JefferyHcool/BiliNote)（MIT），**额外修了几个上游 bug**（见「相对上游的改动」），并把部署方式固定为 Windows + Docker Desktop 单镜像。上游原始 README 保留在 [README.upstream.md](doc/README.upstream.md)。
 
 - 访问地址：<http://127.0.0.1:3015/>
 - 数据目录：`docker-data\`（就在本仓库里，删容器不丢）
@@ -21,9 +21,9 @@
 不想用启动脚本也可以：
 
 ```powershell
-.\start-bilinote.ps1              # 启动；已存在则启动旧容器
-.\start-bilinote.ps1 -Recreate    # 重建容器（数据不丢）
-.\start-bilinote.ps1 -Port 8080   # 换端口
+.\deploy\start-bilinote.ps1              # 启动；已存在则启动旧容器
+.\deploy\start-bilinote.ps1 -Recreate    # 重建容器（数据不丢）
+.\deploy\start-bilinote.ps1 -Port 8080   # 换端口
 ```
 
 ---
@@ -98,7 +98,7 @@ Docker 的代理模式是 **System proxy**，意思是「容器跟随 Windows �
    ```
 
    md 里是 `./<标题>/xxx.jpg` 相对路径（空格会转义成 %20），整个文件夹拷走就能看，没有任何 json/转写杂物。
-   右侧顶部的「导出目录」按钮可以直接打开这个文件夹（首次需运行一次 `注册导出目录协议.ps1`）；
+   右侧顶部的「导出目录」按钮可以直接打开这个文件夹（首次需运行一次 `deploy\注册导出目录协议.ps1`）；
    「导出 Markdown」仍然只下单个 md（不含图）。
 
 ### 时间戳的位置
@@ -135,9 +135,8 @@ Docker 的代理模式是 **System proxy**，意思是「容器跟随 Windows �
 ```
 D:\Project_OpenSource\bilibili_note\
 ├─ 启动BiliNote.bat          ★ 日常双击
-├─ start-bilinote.ps1        底层启动/重建脚本
+├─ deploy\                     底层脚本（启动/构建/补导/协议/supervisord.conf）
 ├─ 整理笔记图片.ps1           导出 md 的图片整理
-├─ supervisord.conf          容器内启动配置（已改 HF_ENDPOINT）
 ├─ Dockerfile.local          把修复固化进镜像（分享用）
 ├─ docker-data\
 │  ├─ data\
@@ -183,18 +182,18 @@ D:\Project_OpenSource\bilibili_note\
 | `backend/app/utils/note_helper.py` | 修 `UnboundLocalError`；B 站链接补 `?t=`；清掉标记尾部 `*`；**时间戳链接移到标题下一行** |
 | `backend/app/routers/note.py` + `db/video_task_dao.py` | `/delete_task` 从空实现改成真正删除文件/截图/媒体/向量/数据库记录 |
 | `backend/app/gpt/prompt_builder.py` | 固定规则：标题/小标题不编号（交给 Markdown 编辑器编号） |
-| `supervisord.conf` | `HF_ENDPOINT` 直连 huggingface.co（hf-mirror 的 308 缺 `x-linked-size`） |
-| `start-bilinote.ps1` / `启动BiliNote.bat` | 一键启动 + 把上面几个文件挂载进容器 |
+| `deploy\supervisord.conf` | `HF_ENDPOINT` 直连 huggingface.co（hf-mirror 的 308 缺 `x-linked-size`） |
+| `deploy\start-bilinote.ps1` / `启动BiliNote.bat` | 一键启动 + 把上面几个文件挂载进容器 |
 | `backend/app/services/note.py` | 生成成功后自动导出干净成品（md + 同名图片目录，空格转义）；补导接口 `POST /api/export_note/{task_id}` |
 | `BillNote_frontend/.../MarkdownViewer.tsx` + `MarkdownHeader.tsx` | 生成完成弹提示；新增「导出目录」按钮（`bilinote://` 协议）；下载按钮恢复为单 md |
-| `注册导出目录协议.ps1` | 注册 `bilinote://` 协议，让网页按钮能打开成品目录（HKCU，可 `-Unregister`） |
-| `补导出笔记.ps1` | 把已有历史笔记补导出到成品目录（`-TaskId` / `-All`） |
+| `deploy\注册导出目录协议.ps1` | 注册 `bilinote://` 协议，让网页按钮能打开成品目录（HKCU，可 `-Unregister`） |
+| `deploy\补导出笔记.ps1` | 把已有历史笔记补导出到成品目录（`-TaskId` / `-All`） |
 | `整理笔记图片.ps1` | 手动整理的备用方案：图片本地化 / 转 URL / 内嵌 base64 |
 | `清理残留.ps1` | 扫描并清理孤儿截图、抽帧、临时媒体、失败任务 |
-| `构建镜像.ps1` | 一键重建本地镜像（拉上游 + 构建前端 + 打包镜像） |
+| `deploy\构建镜像.ps1` | 一键重建本地镜像（拉上游 + 构建前端 + 打包镜像） |
 | `Dockerfile.local` | 把上述修复固化进镜像 |
 
-这些文件通过 `start-bilinote.ps1` 的 bind mount 注入容器，**重启电脑、重建容器都保留**。
+这些文件通过 `deploy\start-bilinote.ps1` 的 bind mount 注入容器，**重启电脑、重建容器都保留**。
 唯一例外：绕过启动脚本直接 `docker run` 官方镜像，就是原版代码。
 
 ---
@@ -205,18 +204,18 @@ D:\Project_OpenSource\bilibili_note\
 
 ```powershell
 docker pull ghcr.io/jefferyhcool/bilinote:latest
-.\start-bilinote.ps1 -Recreate
+.\deploy\start-bilinote.ps1 -Recreate
 ```
 
-升级后如果上游大改了被挂载的那几个文件导致不兼容，删掉 `start-bilinote.ps1` 里对应的 `--mount` 行再试。
+升级后如果上游大改了被挂载的那几个文件导致不兼容，删掉 `deploy\start-bilinote.ps1` 里对应的 `--mount` 行再试。
 
 **备份**：复制 `docker-data\data\`（数据库 + 笔记）即可；`models\` 141MB 不必备份，可重下。
 
 **重建本地镜像**（改了前端或后端后都要跑一次）：
 
 ```powershell
-.\构建镜像.ps1            # 拉上游 latest → vite build → 导出 dist → 打包 bilinote-fixed
-.\start-bilinote.ps1 -Recreate
+.\deploy\构建镜像.ps1            # 拉上游 latest → vite build → 导出 dist → 打包 bilinote-fixed
+.\deploy\start-bilinote.ps1 -Recreate
 ```
 
 启动脚本会自动优先使用 `bilinote-fixed:latest`，没有时才回退官方镜像（那样就没有 zip 导出等前端改动）。
@@ -237,4 +236,4 @@ docker pull ghcr.io/jefferyhcool/bilinote:latest
 
 ## 9. 许可
 
-上游 MIT。本仓库的改动同样以 MIT 发布。上游原始说明见 [README.upstream.md](README.upstream.md)，详细运维记录见 [DEPLOY.md](DEPLOY.md)。
+上游 MIT。本仓库的改动同样以 MIT 发布。上游原始说明见 [README.upstream.md](doc/README.upstream.md)，详细运维记录见 [DEPLOY.md](DEPLOY.md)。

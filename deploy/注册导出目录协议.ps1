@@ -17,7 +17,8 @@ if ($Unregister) {
     return
 }
 
-if (-not $Dir) { $Dir = Join-Path $PSScriptRoot 'bilinote_output_docs' }
+$root = Split-Path -Parent $PSScriptRoot
+if (-not $Dir) { $Dir = Join-Path $root 'bilinote_output_docs' }
 if (-not (Test-Path $Dir)) { New-Item -ItemType Directory -Path $Dir -Force | Out-Null }
 
 New-Item -Path $key -Force | Out-Null

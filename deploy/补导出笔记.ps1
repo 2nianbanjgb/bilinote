@@ -9,7 +9,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$root = $PSScriptRoot
+$root = Split-Path -Parent $PSScriptRoot
 $noteDir = Join-Path $root 'docker-data\data\note_results'
 
 if (-not $All -and -not $TaskId) { throw '请给 -TaskId 或 -All' }

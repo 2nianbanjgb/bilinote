@@ -19,6 +19,6 @@ COPY backend/app/routers/note.py /app/backend/app/routers/note.py
 # 新增：按视频查 task_id（删除用）
 COPY backend/app/db/video_task_dao.py /app/backend/app/db/video_task_dao.py
 # 模型下载源：hf-mirror 的 308 缺 x-linked-size，改成直连 huggingface.co
-COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY deploy/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 # 前端重新构建：下载按钮改为打包 zip（md + 同名图片文件夹）
 COPY ./frontend-dist /usr/share/nginx/html

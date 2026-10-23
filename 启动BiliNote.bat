@@ -44,7 +44,7 @@ rem --- 3. start the container (create it on first ever run) ---
 echo [3/3] Starting BiliNote container...
 docker inspect --type container %CONTAINER% >nul 2>&1
 if errorlevel 1 (
-    powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0start-bilinote.ps1" -Port %PORT%
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0deploy\start-bilinote.ps1" -Port %PORT%
 ) else (
     docker start %CONTAINER% >nul 2>&1
 )
