@@ -49,6 +49,21 @@ class _AudioDownloadResult:
         self.__dict__.update(kwargs)
 
 
+class _InMemoryCookieManager:
+    """避免测试读写真实的 config/downloader.json。"""
+
+    store = {}
+
+    def __init__(self, *args, **kwargs):
+        self._store = _InMemoryCookieManager.store
+
+    def get(self, platform):
+        return self._store.get(platform)
+
+    def set(self, platform, cookie):
+        self._store[platform] = cookie
+
+
 def _load_youtube_downloader():
     """Load the module with its app-level dependencies stubbed out."""
     _stub("app")
@@ -65,10 +80,16 @@ def _load_youtube_downloader():
     _stub("app.downloaders.youtube_subtitle", YouTubeSubtitleFetcher=object)
     _stub("app.models.notes_model", AudioDownloadResult=_AudioDownloadResult)
     _stub("app.models.transcriber_model", TranscriptResult=object)
+    _stub("app.services.cookie_manager", CookieConfigManager=_InMemoryCookieManager)
     _stub(
         "app.services.proxy_config_manager",
         ProxyConfigManager=type(
-            "ProxyConfigManager", (), {"get_proxy_url": lambda self: None}
+            "ProxyConfigManager",
+            (),
+            {
+                "get_proxy_url": lambda self: None,
+                "get_youtube_proxy_url": lambda self: None,
+            },
         ),
     )
     _stub("app.utils.path_helper", get_data_dir=lambda: "/tmp")

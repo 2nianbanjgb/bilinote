@@ -42,7 +42,9 @@ def _load_base():
         module = types.ModuleType(name)
         for key, value in attrs.items():
             setattr(module, key, value)
-        sys.modules.setdefault(name, module)
+        # 用赋值而不是 setdefault：同进程里前面跑过的测试可能留下一个缺
+        # TranscriptResult 的残缺 stub，setdefault 会沿用它导致 ImportError。
+        sys.modules[name] = module
 
     spec = importlib.util.spec_from_file_location("dl_base", DOWNLOADERS / "base.py")
     if spec is None or spec.loader is None:

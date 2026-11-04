@@ -19,7 +19,8 @@ class YouTubeSubtitleFetcher:
     """通过 youtube-transcript-api 获取 YouTube 字幕。"""
 
     def __init__(self):
-        proxy = ProxyConfigManager().get_proxy_url()
+        # 字幕请求和视频下载用同一条线路：YouTube 专用代理（没配则回落全局代理）
+        proxy = ProxyConfigManager().get_youtube_proxy_url()
         cookie = CookieConfigManager().get('youtube') or ""
         try:
             import requests

@@ -18,6 +18,10 @@ COPY backend/app/validators/video_url_validator.py /app/backend/app/validators/v
 COPY backend/app/downloaders/douyin_downloader.py /app/backend/app/downloaders/douyin_downloader.py
 COPY backend/app/downloaders/youtube_downloader.py /app/backend/app/downloaders/youtube_downloader.py
 COPY backend/app/downloaders/youtube_subtitle.py /app/backend/app/downloaders/youtube_subtitle.py
+# 新增：YouTube 专用代理（其它平台直连）+ Cookie 轮换后原子回写
+COPY backend/app/services/proxy_config_manager.py /app/backend/app/services/proxy_config_manager.py
+COPY backend/app/services/cookie_manager.py /app/backend/app/services/cookie_manager.py
+COPY backend/app/routers/config.py /app/backend/app/routers/config.py
 # 修复：网页删除任务时真正清理文件/截图/媒体/向量索引
 COPY backend/app/routers/note.py /app/backend/app/routers/note.py
 # 新增：按视频查 task_id（删除用）

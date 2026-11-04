@@ -60,6 +60,10 @@
 普通公开视频不需要；它主要解决年龄限制、会员、私享、地区限制。注意 **YouTube 必须走代理**：先开 Clash → 重启 Docker → 再启动 BiliNote。
 YouTube 还需要 JS 运行时解 n-challenge（镜像内已带 Node 22 + `yt-dlp-ejs`，不用你装）；早期版本会报 `Sign in to confirm you're not a bot` / `The page needs to be reloaded`，就是缺这个。
 
+> **YouTube 专用代理 / Cookie 自动续期**（本仓库新增）：
+> - 「设置 → 下载配置 → 代理」里除了全局代理，还有 **YouTube 专用代理**，只作用于 YouTube 下载与字幕请求；B 站、抖音始终直连。YouTube 对 AWS/GCP 之类机房 IP 风控很严，建议给它单独一条住宅或非机房线路。
+> - yt-dlp 轮换出来的 Cookie（`__Secure-1PSIDTS` 等）会自动写回 `config\downloader.json`，不用每次手动重导。遇到 `Sign in to confirm you're not a bot` 仍会先指数退避重试，最终失败时任务详情里给的是可读的中文原因，而不是裸的 yt-dlp 报错。
+
 ### 第 3 步：选转写引擎（一般不用动）
 
 「设置 → 音频转写配置」：
@@ -177,6 +181,7 @@ D:\Project_OpenSource\bilibili_note\
 | 时间戳点了回开头 | 旧版本 bug（链接少了 `?`），本仓库已修 |
 | 模型报 404 / 不存在 | `deepseek-chat` 已下线，用 `deepseek-flash` |
 | YouTube 提示需要登录 / 年龄限制 | 在「下载配置 → YouTube」填 Cookie（从 youtube.com 导出）；同时确认 Clash 开着且 Docker 是重启后启动的 |
+| YouTube 报 `Sign in to confirm you're not a bot` / `HTTP 429` / `RequestBlocked` | 出口 IP 被 YouTube 判成机器人，或保存的 Cookie 已失效。①「下载配置 → 代理」里的 **YouTube 专用代理**配一条住宅/非机房线路（AWS、GCP 这类机房 IP 基本必被拦）；②重新导一份 YouTube Cookie；③等 10 分钟以上再试，期间连点重试只会继续累加限流。批量跑时建议把 `TASK_MAX_WORKERS` 调成 1，并关掉「原片截图」——否则每个任务都会拉整部 1080p |
 | 长视频报 `'music'` / KeyError | 部分长视频（如 40 分钟以上）没有 `music` 字段，音频在 `bit_rate_audio` 里。已做兜底：优先 `music` → `bit_rate_audio` → 下最低分辨率视频再抽音轨；标题也回退到 `desc` |
 | 抖音画质为什么是“智能” | 抖音的 `download_addr` 默认就是自适应档（智能）。下载器现在按 `bit_rate` 列表选**最高分辨率**（同分辨率优先 h264），实测这条视频拿到了 2560×1440 / HEVC / 60fps；截图由 ffmpeg 解码，不影响 |
 | 抖音报 `JSONDecodeError` / 请求失败 | ① 纯主页/收藏夹/直播没有视频 ID → 用 `/video/数字`、`v.douyin.com` 短链，或主页点开视频后带 `modal_id=数字` 的链接；② 有 ID 仍失败 → 先确认「设置 → 下载配置 → 抖音」填了 Cookie（`ttwid` / `UIFID` 等）。项目内置了无头 Chromium 兜底（页面 JS 自己算签名），首次解析会多花 20~40 秒；视频私密/仅自己可见仍拿不到 |

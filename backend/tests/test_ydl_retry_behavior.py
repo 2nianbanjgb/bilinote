@@ -45,8 +45,24 @@ def _load_downloader_module(monkeypatch):
     _stub(monkeypatch, "app.models.transcriber_model", TranscriptResult=object)
     _stub(
         monkeypatch,
+        "app.services.cookie_manager",
+        CookieConfigManager=type(
+            "CookieConfigManager",
+            (),
+            {"get": lambda self, platform: None, "set": lambda self, platform, cookie: None},
+        ),
+    )
+    _stub(
+        monkeypatch,
         "app.services.proxy_config_manager",
-        ProxyConfigManager=type("ProxyConfigManager", (), {"get_proxy_url": lambda self: None}),
+        ProxyConfigManager=type(
+            "ProxyConfigManager",
+            (),
+            {
+                "get_proxy_url": lambda self: None,
+                "get_youtube_proxy_url": lambda self: None,
+            },
+        ),
     )
     _stub(monkeypatch, "app.utils.path_helper", get_data_dir=lambda: "/tmp")
     _stub(monkeypatch, "app.utils.url_parser", extract_video_id=lambda url, platform: "video-id")

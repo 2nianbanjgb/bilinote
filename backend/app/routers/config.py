@@ -118,11 +118,13 @@ def update_transcriber_config(data: TranscriberConfigRequest):
     return R.success(data=config)
 
 
-# ---- 全局代理配置（作用于 LLM API + 转写 API + yt-dlp 下载）----
+# ---- 代理配置（全局代理作用于 LLM / 转写 / 下载；YouTube 可单独走一条线路）----
 
 class ProxyConfigRequest(BaseModel):
     enabled: bool
     url: Optional[str] = None
+    # YouTube 专用代理：留空则跟随全局代理；B 站 / 抖音始终直连
+    youtube_url: Optional[str] = None
 
 
 @router.get("/proxy_config")
@@ -134,6 +136,7 @@ def get_proxy_config():
     return R.success(data={
         **cfg,
         "effective": mgr.get_proxy_url() or "",
+        "youtube_effective": mgr.get_youtube_proxy_url() or "",
     })
 
 
@@ -141,10 +144,13 @@ def get_proxy_config():
 def update_proxy_config(data: ProxyConfigRequest):
     from app.services.proxy_config_manager import ProxyConfigManager
     mgr = ProxyConfigManager()
-    cfg = mgr.update_config(enabled=data.enabled, url=data.url)
+    cfg = mgr.update_config(
+        enabled=data.enabled, url=data.url, youtube_url=data.youtube_url
+    )
     return R.success(data={
         **cfg,
         "effective": mgr.get_proxy_url() or "",
+        "youtube_effective": mgr.get_youtube_proxy_url() or "",
     })
 
 
