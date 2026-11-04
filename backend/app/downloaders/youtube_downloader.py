@@ -1,5 +1,6 @@
 import os
 import logging
+import tempfile
 from abc import ABC
 from typing import Union, Optional, List
 
@@ -9,6 +10,7 @@ from app.downloaders.base import Downloader, DownloadQuality, YDL_RETRY_OPTS
 from app.downloaders.youtube_subtitle import YouTubeSubtitleFetcher
 from app.models.notes_model import AudioDownloadResult
 from app.models.transcriber_model import TranscriptResult
+from app.services.cookie_manager import CookieConfigManager
 from app.services.proxy_config_manager import ProxyConfigManager
 from app.utils.path_helper import get_data_dir
 from app.utils.url_parser import extract_video_id
@@ -29,6 +31,33 @@ class YoutubeDownloader(Downloader, ABC):
     def __init__(self):
 
         super().__init__()
+        self._cookie = CookieConfigManager().get('youtube') or ""
+        self._cookiefile = self._write_cookie_file()
+
+    def _write_cookie_file(self):
+        """把前端存的 YouTube Cookie 写成 Netscape 文件，供 yt-dlp 使用。"""
+        if not self._cookie:
+            return None
+        lines = ["# Netscape HTTP Cookie File", ""]
+        for part in self._cookie.split(";"):
+            part = part.strip()
+            if "=" not in part:
+                continue
+            name, value = part.split("=", 1)
+            name = name.strip()
+            if not name:
+                continue
+            lines.append("\t".join([".youtube.com", "TRUE", "/", "TRUE", "2147483647", name, value]))
+        fd, path = tempfile.mkstemp(prefix="yt_cookie_", suffix=".txt")
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+        logger.info(f"已生成 YouTube Cookie 文件（{len(lines) - 2} 条）")
+        return path
+
+    def _apply_cookie(self, ydl_opts: dict) -> dict:
+        if self._cookiefile:
+            ydl_opts['cookiefile'] = self._cookiefile
+        return ydl_opts
 
     def download(
         self,
@@ -62,6 +91,7 @@ class YoutubeDownloader(Downloader, ABC):
             ydl_opts['ignore_no_formats_error'] = True
 
         _apply_proxy(ydl_opts)
+        self._apply_cookie(ydl_opts)
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(video_url, download=not skip_download)
             video_id = info.get("id")
@@ -110,6 +140,7 @@ class YoutubeDownloader(Downloader, ABC):
         }
 
         _apply_proxy(ydl_opts)
+        self._apply_cookie(ydl_opts)
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(video_url, download=True)
             video_id = info.get("id")
