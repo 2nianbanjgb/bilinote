@@ -81,6 +81,7 @@ class YoutubeDownloader(Downloader, ABC):
             'outtmpl': output_path,
             'noplaylist': True,
             'quiet': False,
+            'js_runtimes': {'node': {}},
         }
 
         if skip_download:
@@ -136,6 +137,7 @@ class YoutubeDownloader(Downloader, ABC):
             'outtmpl': output_path,
             'noplaylist': True,
             'quiet': False,
+            'js_runtimes': {'node': {}},
             'merge_output_format': 'mp4',  # 确保合并成 mp4
         }
 

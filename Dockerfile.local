@@ -37,3 +37,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple playwright==1.48.0 \
     && PLAYWRIGHT_DOWNLOAD_HOST=https://cdn.npmmirror.com/binaries/playwright python -m playwright install chromium \
     && rm -rf /var/lib/apt/lists/*
+# YouTube 的 n-challenge 需要 JS 运行时（Node ≥20）+ yt-dlp-ejs；Debian 自带的是 18，不能用
+RUN python -c "import urllib.request; urllib.request.urlretrieve('https://npmmirror.com/mirrors/node/v22.11.0/node-v22.11.0-linux-x64.tar.gz','/tmp/node.tar.gz')" \
+    && mkdir -p /opt/node \
+    && tar -xzf /tmp/node.tar.gz -C /opt/node --strip-components=1 \
+    && ln -sf /opt/node/bin/node /usr/local/bin/node \
+    && ln -sf /opt/node/bin/npm /usr/local/bin/npm \
+    && rm /tmp/node.tar.gz \
+    && node --version
+RUN pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple yt-dlp-ejs==0.8.0

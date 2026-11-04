@@ -58,6 +58,7 @@
 **YouTube**：同样在「下载配置 → YouTube」粘贴 Cookie，关键字段 `SID` / `HSID` / `SSID` / `APISID` / `SAPISID` / `__Secure-3PSID` / `LOGIN_INFO`，
 从 **youtube.com** 页面用 Cookie-Editor 导出（Header String）。下载时 yt-dlp 会带上这份 Cookie，字幕请求也会带。
 普通公开视频不需要；它主要解决年龄限制、会员、私享、地区限制。注意 **YouTube 必须走代理**：先开 Clash → 重启 Docker → 再启动 BiliNote。
+YouTube 还需要 JS 运行时解 n-challenge（镜像内已带 Node 22 + `yt-dlp-ejs`，不用你装）；早期版本会报 `Sign in to confirm you're not a bot` / `The page needs to be reloaded`，就是缺这个。
 
 ### 第 3 步：选转写引擎（一般不用动）
 
