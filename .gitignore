@@ -329,3 +329,6 @@ ffmpeg*/
 ffmpg*/
 # local-history 扩展
 .lh/
+
+# DSH 运行期临时目录
+.dsh-scratch/
